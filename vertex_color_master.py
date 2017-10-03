@@ -59,32 +59,80 @@ channel_r = 1
 channel_g = 2
 channel_b = 4
 channel_a = 8
-channel_mask = 0;
+channel_mask = 15;
+
+
+##### HELPER FUNCTIONS #####
+
+##### MAIN OPERATOR CLASSES #####
+class VertexColorMaster_Fill(bpy.types.Operator):
+  """Fill the active vertex color channel with the current color"""
+  bl_idname = 'vertexcolormaster.fill'
+  bl_label = 'VCM Fill with color'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+    active_obj = context.active_object
+    mesh = active_obj.data
+
+    if mesh.vertex_colors:
+      vcol_layer = mesh.vertex_colors.active
+    else:
+      vcol_layer = mesh.vertex_colors.new()
+
+    draw_color = bpy.data.brushes['Draw'].color
+
+    for loop_index, loop in enumerate(mesh.loops):
+      color = vcol_layer.data[loop_index].color
+      if channel_mask & channel_r:
+        color[0] = draw_color[0]
+      if channel_mask & channel_g:
+        color[1] = draw_color[1]
+      if channel_mask & channel_b:
+        color[2] = draw_color[2]
+      # if channel_mask & channel_a:
+      vcol_layer.data[loop_index].color = color
+
+    mesh.vertex_colors.active = vcol_layer
+
+    mesh.update()
+
+
+    return {'FINISHED'}
 
 
 ##### MAIN CLASS, UI AND REGISTRATION #####
-class VertexColorMasterPanel(bpy.types.Panel):
+class VertexColorMaster_UI(bpy.types.Panel):
   """COMMENT"""
   bl_space_type = 'VIEW_3D'
   bl_region_type = 'TOOLS'
   bl_label = 'Vertex Color Master'
-  bl_category = 'VCM'
+  bl_category = 'Tools'
   bl_context = 'vertexpaint'
 
   def draw(self, context):
     layout = self.layout
 
-    col = layout.column()
-    col.label("Hello!")
+    # col = layout.column()
+    # col.label("Hello!")
+    row = layout.row()
+    row.operator('vertexcolormaster.fill')
 
 
 ##### OPERATOR REGISTRATION #####
 def register():
-  bpy.utils.register_class(VertexColorMasterPanel)
+  bpy.utils.register_class(VertexColorMaster_UI)
+  bpy.utils.register_class(VertexColorMaster_Fill)
 
 
 def unregister():
-  bpy.utils.unregister_class(VertexColorMasterPanel)
+  bpy.utils.unregister_class(VertexColorMaster_UI)
+  bpy.utils.unregister_class(VertexColorMaster_Fill)
 
 
 # allows running addon from text editor
