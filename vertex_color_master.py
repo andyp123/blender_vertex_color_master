@@ -90,29 +90,6 @@ def rgb_to_luminosity(color):
   # Y = 0.299 R + 0.587 G + 0.114 B
   return color[0]*0.299 + color[1]*0.587 + color[2]*0.114
 
-# def validate_vcol_inputs(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx):
-#   if mesh.vertex_colors == None:
-#     return "Mesh has no vertex color layers"
-
-#   src_vcol = None
-#   dst_vcol = None
-
-#   if src_vcol_id in mesh.vertex_colors:
-#     src_vcol = mesh.vertex_colors[src_vcol_id]
-#   else:
-#     return "Source vertex color layer does not exist"
-
-#   if dst_vcol_id in mesh.vertex_colors:
-#     dst_vcol = mesh.vertex_colors[dst_vcol_id]
-#   else:
-#     return "Destination vertex color layer does not exist"
-  
-#   if src_vcol == dst_vcol and src_channel_idx == dst_channel_idx:
-#     print()
-#     return "Source and destination channels are the same"
-
-#   return "VALID"
-
 
 def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, dst_all_channels=False):
   # validate input
@@ -137,7 +114,7 @@ def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, d
       dst_vcol.data[loop_index].color[dst_channel_idx] = luminosity
 
 
-def copy_rgb_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, swap=False):
+def copy_rgb_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, swap=False, dst_all_channels=False):
   # validate input
   if mesh.vertex_colors is None:
     print("mesh has no vertex colors")
@@ -149,26 +126,58 @@ def copy_rgb_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channe
     print("source or destination are invalid")
     return
 
-  if src_vcol == dst_vcol and src_channel_idx == dst_channel_idx:
-    print("source and destination are the same")
-    return
-
-  # perfrom channel copy/swap
-  if swap:
+  if dst_all_channels:
     for loop_index, loop in enumerate(mesh.loops):
       src_val = src_vcol.data[loop_index].color[src_channel_idx]
-      dst_val = dst_vcol.data[loop_index].color[dst_channel_idx]
-      dst_vcol.data[loop_index].color[dst_channel_idx] = src_val
-      src_vcol.data[loop_index].color[src_channel_idx] = dst_val
+      dst_vcol.data[loop_index].color = [src_val]*3
   else:
-    for loop_index, loop in enumerate(mesh.loops):
-      src_val = src_vcol.data[loop_index].color[src_channel_idx]
-      dst_vcol.data[loop_index].color[dst_channel_idx] = src_val  
+    if src_vcol == dst_vcol and src_channel_idx == dst_channel_idx:
+      print("source and destination are the same")
+      return
+
+    # perfrom channel copy/swap
+    if swap:
+      for loop_index, loop in enumerate(mesh.loops):
+        src_val = src_vcol.data[loop_index].color[src_channel_idx]
+        dst_val = dst_vcol.data[loop_index].color[dst_channel_idx]
+        dst_vcol.data[loop_index].color[dst_channel_idx] = src_val
+        src_vcol.data[loop_index].color[src_channel_idx] = dst_val
+    else:
+      for loop_index, loop in enumerate(mesh.loops):
+        dst_vcol.data[loop_index].color[dst_channel_idx] = src_vcol.data[loop_index].color[src_channel_idx]  
 
   mesh.update()
 
 
 ##### MAIN OPERATOR CLASSES #####
+class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
+  """Convert the RGB color of a vertex color layer to a grayscale value"""
+  bl_idname = 'vertexcolormaster.rgb_to_grayscale'
+  bl_label = 'VCM RGB to grayscale'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  all_channels = bpy.props.BoolProperty(
+    name = "all channels",
+    default = True,
+    description = "Put the grayscale value in all channels of the destination"
+    )
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+    src_id = context.scene.src_vcol_id
+    dst_id = context.scene.dst_vcol_id
+    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
+    mesh = context.active_object.data
+
+    convert_rgb_to_luminosity(mesh, src_id, dst_id, dst_channel_idx, self.all_channels)
+
+    return {'FINISHED'}
+
+
 class VertexColorMaster_CopyChannel(bpy.types.Operator):
   """Copy or swap channel data from one channel to another"""
   bl_idname = 'vertexcolormaster.copy_channel'
@@ -181,6 +190,12 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
     description = "Swap source and destination channels instead of copy"
     )
 
+  all_channels = bpy.props.BoolProperty(
+    name = "all channels",
+    default = False,
+    description = "Put the copied value in all channels of the destination"
+    )
+
   @classmethod
   def poll(cls, context):
     active_obj = context.active_object
@@ -189,20 +204,34 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
   def execute(self, context):
     src_id = context.scene.src_vcol_id
     dst_id = context.scene.dst_vcol_id
-    src_channel_id = channel_id_to_idx(context.scene.src_channel_id)
-    dst_channel_id = channel_id_to_idx(context.scene.dst_channel_id)
+    src_channel_idx = channel_id_to_idx(context.scene.src_channel_id)
+    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
     mesh = context.active_object.data
 
-    copy_vertex_color_channel(mesh, src_id, dst_id, src_channel_id, dst_channel_id, self.swap_channels)
+    copy_rgb_channel(mesh, src_id, dst_id, src_channel_idx, dst_channel_idx, self.swap_channels, self.all_channels)
 
     return {'FINISHED'}
 
 
 class VertexColorMaster_Fill(bpy.types.Operator):
-  """Fill the active vertex color channel with the current color"""
+  """Fill the active vertex color channel(s)"""
   bl_idname = 'vertexcolormaster.fill'
-  bl_label = 'VCM Fill with color'
+  bl_label = 'VCM Fill'
   bl_options = {'REGISTER', 'UNDO'}
+
+  value = bpy.props.FloatProperty(
+    name = "value",
+    default = 1.0,
+    min = 0.0,
+    max = 1.0,
+    description = "Value to fill channel(s) with"
+    )
+
+  clear_inactive = bpy.props.BoolProperty(
+    name = "clear inactive",
+    default = False,
+    description = "Clear inactive channel(s)"
+    )
 
   @classmethod
   def poll(cls, context):
@@ -218,10 +247,18 @@ class VertexColorMaster_Fill(bpy.types.Operator):
     else:
       vcol_layer = mesh.vertex_colors.new()
 
-    fill_color = bpy.data.brushes['Draw'].color
+    value = self.value
+    rmul = 1.0 if not self.clear_inactive or red_id in active_channels else 0.0
+    gmul = 1.0 if not self.clear_inactive or green_id in active_channels else 0.0
+    bmul = 1.0 if not self.clear_inactive or blue_id in active_channels else 0.0
 
     for loop_index, loop in enumerate(mesh.loops):
-      vcol_layer.data[loop_index].color = fill_color
+      color = vcol_layer.data[loop_index].color
+      vcol_layer.data[loop_index].color = [
+        value if red_id in active_channels else color[0] * rmul,
+        value if green_id in active_channels else color[1] * gmul,
+        value if blue_id in active_channels else color[2] * bmul
+        ]
 
     mesh.vertex_colors.active = vcol_layer
     mesh.update()
@@ -231,7 +268,7 @@ class VertexColorMaster_Fill(bpy.types.Operator):
 class VertexColorMaster_Invert(bpy.types.Operator):
   """Invert active vertex color channel(s)"""
   bl_idname = 'vertexcolormaster.invert'
-  bl_label = 'Invert vertex color channel(s)'
+  bl_label = 'VCM Invert'
   bl_options = {'REGISTER', 'UNDO'}
 
   @classmethod
@@ -256,7 +293,6 @@ class VertexColorMaster_Invert(bpy.types.Operator):
         color[1] = 1 - color[1]
       if blue_id in active_channels:
         color[2] = 1 - color[2]
-      # if alpha_id in active_channels:
       vcol_layer.data[loop_index].color = color
 
     mesh.vertex_colors.active = vcol_layer
@@ -309,7 +345,6 @@ class VertexColorMaster(bpy.types.Panel):
     default=1.0,
     min=0.0,
     max=1.0,
-    step=0.5,
     update=update_rgba,
     )
 
@@ -358,7 +393,7 @@ class VertexColorMaster(bpy.types.Panel):
     row.label('Brush Color')
     row = col.row()
     row.prop(brush, 'color', text = "")
-    row.prop(context.scene, 'brush_value')
+    row.prop(context.scene, 'brush_value', 'Val')
 
     col = layout.column(align=True)
     row = col.row()
@@ -367,10 +402,11 @@ class VertexColorMaster(bpy.types.Panel):
     row.prop(context.scene, 'active_channels', expand=True)
 
     layout.separator()
+    row = layout.row(align = True)
+    row.operator('vertexcolormaster.fill', 'Fill').value = 1.0
+    row.operator('vertexcolormaster.fill', 'Clear').value = 0.0
     row = layout.row()
-    row.operator('vertexcolormaster.fill')
-    row = layout.row()
-    row.operator('vertexcolormaster.invert')
+    row.operator('vertexcolormaster.invert', 'Invert channel(s)')
 
     lcol_percentage = 0.8
     row = layout.row()
@@ -389,21 +425,12 @@ class VertexColorMaster(bpy.types.Panel):
     col = split.column(align=True)
     col.prop(context.scene, 'dst_channel_id', '')
 
+    row = layout.row(align=True)
+    row.operator('vertexcolormaster.copy_channel', 'Copy').swap_channels = False
+    row.operator('vertexcolormaster.copy_channel', 'Swap').swap_channels = True
     row = layout.row()
-    row.operator('vertexcolormaster.copy_channel')
-    # row = layout.row()
-    # row.operator('vertexcolormaster.rgb_to_luminosity')
+    row.operator('vertexcolormaster.rgb_to_grayscale', 'Convert to Grayscale')
 
-
-
-# def draw_split(layout, property_group, property_id, label, lcol_percentage=0.5):
-#   row = layout.row()
-#   split = row.split(percentage=lcol_percentage)
-#   col = split.column()
-#   col.label(label)
-#   split = split.split()
-#   col = split.column()
-#   col.prop(property_group, property_id, text="")
 
 ##### OPERATOR REGISTRATION #####
 def register():
@@ -411,6 +438,7 @@ def register():
   bpy.utils.register_class(VertexColorMaster_Fill)
   bpy.utils.register_class(VertexColorMaster_Invert)
   bpy.utils.register_class(VertexColorMaster_CopyChannel)
+  bpy.utils.register_class(VertexColorMaster_RgbToGrayscale)
 
 
 def unregister():
@@ -418,6 +446,7 @@ def unregister():
   bpy.utils.unregister_class(VertexColorMaster_Fill)
   bpy.utils.unregister_class(VertexColorMaster_Invert)
   bpy.utils.unregister_class(VertexColorMaster_CopyChannel)
+  bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
 
 
 # allows running addon from text editor
