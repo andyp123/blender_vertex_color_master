@@ -67,7 +67,6 @@ green_id = 'G'
 blue_id = 'B'
 alpha_id = 'A'
 
-
 ##### HELPER FUNCTIONS #####
 def set_channels_visible(object, active_channels):
   return None
@@ -75,7 +74,132 @@ def set_channels_visible(object, active_channels):
 def set_brush_params(brush_opacity, brush_mode, active_channels):
   return None
 
+def channel_id_to_idx(id):
+  if id is red_id:
+    return 0
+  if id is green_id:
+    return 1
+  if id is blue_id:
+    return 2
+  if id is alpha_id:
+    return 3
+  # default to red
+  return 0 
+
+def rgb_to_luminosity(color):
+  # Y = 0.299 R + 0.587 G + 0.114 B
+  return color[0]*0.299 + color[1]*0.587 + color[2]*0.114
+
+# def validate_vcol_inputs(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx):
+#   if mesh.vertex_colors == None:
+#     return "Mesh has no vertex color layers"
+
+#   src_vcol = None
+#   dst_vcol = None
+
+#   if src_vcol_id in mesh.vertex_colors:
+#     src_vcol = mesh.vertex_colors[src_vcol_id]
+#   else:
+#     return "Source vertex color layer does not exist"
+
+#   if dst_vcol_id in mesh.vertex_colors:
+#     dst_vcol = mesh.vertex_colors[dst_vcol_id]
+#   else:
+#     return "Destination vertex color layer does not exist"
+  
+#   if src_vcol == dst_vcol and src_channel_idx == dst_channel_idx:
+#     print()
+#     return "Source and destination channels are the same"
+
+#   return "VALID"
+
+
+def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, dst_all_channels=False):
+  # validate input
+  if mesh.vertex_colors == None:
+    print("mesh has no vertex colors")
+    return
+  src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
+  dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
+
+  if src_vcol is None or dst_vcol is None:
+    print("source or destination are invalid")
+    return
+
+  # convert color to luminosity
+  if dst_all_channels:
+    for loop_index, loop in enumerate(mesh.loops):
+      luminosity = rgb_to_luminosity(src_vcol.data[loop_index].color)
+      dst_vcol.data[loop_index].color = [luminosity]*3
+  else:
+    for loop_index, loop in enumerate(mesh.loops):
+      luminosity = rgb_to_luminosity(src_vcol.data[loop_index].color)
+      dst_vcol.data[loop_index].color[dst_channel_idx] = luminosity
+
+
+def copy_rgb_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, swap=False):
+  # validate input
+  if mesh.vertex_colors == None:
+    print("mesh has no vertex colors")
+    return
+  src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
+  dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
+
+  if src_vcol is None or dst_vcol is None:
+    print("source or destination are invalid")
+    return
+
+  if src_vcol == dst_vcol and src_channel_idx == dst_channel_idx:
+    print("source and destination are the same")
+    return
+
+  # perfrom channel copy/swap
+  if swap:
+    for loop_index, loop in enumerate(mesh.loops):
+      src_val = src_vcol.data[loop_index].color[src_channel_idx]
+      dst_val = dst_vcol.data[loop_index].color[dst_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = src_val
+      src_vcol.data[loop_index].color[src_channel_idx] = dst_val
+  else:
+    for loop_index, loop in enumerate(mesh.loops):
+      src_val = src_vcol.data[loop_index].color[src_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = src_val  
+
+  mesh.update()
+
+
 ##### MAIN OPERATOR CLASSES #####
+class VertexColorMaster_CopyChannel(bpy.types.Operator):
+  """Copy or swap channel data from one channel to another"""
+  bl_idname = 'vertexcolormaster.copy_channel'
+  bl_label = 'VCM Copy channel data'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  swap_channels = bpy.props.BoolProperty(
+    name = "swap channels",
+    default = False,
+    description = "Swap source and destination channels instead of copy"
+    )
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+
+    # test!
+    src_id = 'source'
+    dst_id = 'source'
+    src_channel_id = 0
+    dst_channel_id = 1
+    mesh = context.active_object.data
+
+    copy_vertex_color_channel(mesh, src_id, dst_id, src_channel_id, dst_channel_id, self.swap_channels)
+
+    return {'FINISHED'}
+
+
 class VertexColorMaster_Fill(bpy.types.Operator):
   """Fill the active vertex color channel with the current color"""
   bl_idname = 'vertexcolormaster.fill'
@@ -213,6 +337,8 @@ class VertexColorMaster(bpy.types.Panel):
     row.operator('vertexcolormaster.fill')
     row = layout.row()
     row.operator('vertexcolormaster.invert')
+    row = layout.row()
+    row.operator('vertexcolormaster.copy_channel')
 
 
 
@@ -221,12 +347,14 @@ def register():
   bpy.utils.register_class(VertexColorMaster)
   bpy.utils.register_class(VertexColorMaster_Fill)
   bpy.utils.register_class(VertexColorMaster_Invert)
+  bpy.utils.register_class(VertexColorMaster_CopyChannel)
 
 
 def unregister():
   bpy.utils.unregister_class(VertexColorMaster)
   bpy.utils.unregister_class(VertexColorMaster_Fill)
   bpy.utils.unregister_class(VertexColorMaster_Invert)
+  bpy.utils.unregister_class(VertexColorMaster_CopyChannel)
 
 
 # allows running addon from text editor
