@@ -58,7 +58,7 @@ bl_info = {
   "version": (0, 0, 1),
   "blender": (2, 79, 0),
   "location": "",
-  "description": "Tools to make working with vertex colors with greater precision than using the paint brush.",
+  "description": "Tools for working with vertex colors at greater precision than using the paint brush.",
   "category": "Paint"
 }
 
@@ -116,7 +116,7 @@ def rgb_to_luminosity(color):
 
 def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, dst_all_channels=False):
   # validate input
-  if mesh.vertex_colors == None:
+  if mesh.vertex_colors is None:
     print("mesh has no vertex colors")
     return
   src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
@@ -139,7 +139,7 @@ def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, d
 
 def copy_rgb_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, swap=False):
   # validate input
-  if mesh.vertex_colors == None:
+  if mesh.vertex_colors is None:
     print("mesh has no vertex colors")
     return
   src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
@@ -187,12 +187,10 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
     return active_obj != None and active_obj.type == 'MESH'
 
   def execute(self, context):
-
-    # test!
-    src_id = 'source'
-    dst_id = 'source'
-    src_channel_id = 0
-    dst_channel_id = 1
+    src_id = context.scene.src_vcol_id
+    dst_id = context.scene.dst_vcol_id
+    src_channel_id = channel_id_to_idx(context.scene.src_channel_id)
+    dst_channel_id = channel_id_to_idx(context.scene.dst_channel_id)
     mesh = context.active_object.data
 
     copy_vertex_color_channel(mesh, src_id, dst_id, src_channel_id, dst_channel_id, self.swap_channels)
@@ -294,7 +292,7 @@ class VertexColorMaster(bpy.types.Panel):
     # update rgba of vertex colors shown in viewport to match mask
     return None
 
-  channel_items = ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""), (alpha_id, "A", ""))
+  channel_items = ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""))#, (alpha_id, "A", ""))
 
   bpy.types.Scene.active_channels = EnumProperty(
     name="Active Channels",
@@ -315,6 +313,42 @@ class VertexColorMaster(bpy.types.Panel):
     update=update_rgba,
     )
 
+  def vcol_layer_items(self, context):
+    mesh = context.active_object.data
+    if mesh.vertex_colors == None:
+      return [('', '', '')]
+    return [(vcol.name, vcol.name, '') for vcol in mesh.vertex_colors]
+
+  bpy.types.Scene.src_vcol_id = EnumProperty(
+    name="Source Layer",
+    items=vcol_layer_items,
+    description="Source vertex color layer",
+    )
+
+  bpy.types.Scene.src_channel_id = EnumProperty(
+    name="Source Channel",
+    items=channel_items,
+    description="Source color channel"
+    )
+
+  bpy.types.Scene.dst_vcol_id = EnumProperty(
+    name="Destination Layer",
+    items=vcol_layer_items,
+    description="Destination vertex color layer",
+    )
+
+  bpy.types.Scene.dst_channel_id = EnumProperty(
+    name="Destination Channel",
+    items=channel_items,
+    description="Destination color channel"
+    )
+
+
+  # @classmethod
+  # def poll(cls, context):
+  #   active_obj = context.active_object
+  #   return active_obj != None and active_obj.type == 'MESH'
+
   def draw(self, context):
     layout = self.layout
 
@@ -323,24 +357,53 @@ class VertexColorMaster(bpy.types.Panel):
     row = col.row()
     row.label('Brush Color')
     row = col.row()
-    row.prop(brush, "color", text = "")
-    row.prop(context.scene, "brush_value")
+    row.prop(brush, 'color', text = "")
+    row.prop(context.scene, 'brush_value')
 
     col = layout.column(align=True)
     row = col.row()
     row.label('Active Channels')
     row = col.row()
-    row.prop(context.scene, "active_channels", expand=True)
+    row.prop(context.scene, 'active_channels', expand=True)
 
     layout.separator()
     row = layout.row()
     row.operator('vertexcolormaster.fill')
     row = layout.row()
     row.operator('vertexcolormaster.invert')
+
+    lcol_percentage = 0.8
+    row = layout.row()
+    split = row.split(lcol_percentage, align=True)
+    col = split.column(align=True)
+    col.prop(context.scene, 'src_vcol_id', 'Src')
+    split = split.split(align=True)
+    col = split.column(align=True)
+    col.prop(context.scene, 'src_channel_id', '')
+
+    row = layout.row()
+    split = row.split(lcol_percentage, align=True)
+    col = split.column(align=True)
+    col.prop(context.scene, 'dst_vcol_id', 'Dst')
+    split = split.split(align=True)
+    col = split.column(align=True)
+    col.prop(context.scene, 'dst_channel_id', '')
+
     row = layout.row()
     row.operator('vertexcolormaster.copy_channel')
+    # row = layout.row()
+    # row.operator('vertexcolormaster.rgb_to_luminosity')
 
 
+
+# def draw_split(layout, property_group, property_id, label, lcol_percentage=0.5):
+#   row = layout.row()
+#   split = row.split(percentage=lcol_percentage)
+#   col = split.column()
+#   col.label(label)
+#   split = split.split()
+#   col = split.column()
+#   col.prop(property_group, property_id, text="")
 
 ##### OPERATOR REGISTRATION #####
 def register():
