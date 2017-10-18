@@ -16,32 +16,13 @@
 #  ***** GPL LICENSE BLOCK *****
 
 
-# + Transfer vertex colors to single channel 
-# + paint greyscale, r, g, b or whatever
-# + convert colors by luminosity, channel copy, channel mask, channel swap
-# + fill channel with color
-# + fill can use selection as a mask
-# + fill can have fade out from selection (i.e. selected verts are 1.0, verts at fade dist are 0, and in between are lerped)
-# + support alpha using technique from existing vcolor addons
-# + convert vcol to weights and back
-# + convert weights to channel
-# + channel viewer
-
-# where is the vcol data stored? temp vcol channel, or temp object copy?
-# blender only supports r,g,b. could use two rgb channels giving 6 channels total
-
-# first steps
-# fill channel
-# invert channel
-# use vertex selection mask with fill and invert
-#   selection using vertices must get each vertex from loop data (per face vertex)
-#   selection usin faces must get just the loop for entire face
-
 # TODO:
-# active channels is weird. Just make RGBA part of the brush settings and call it brush_channels or something
-# think about workflow properly
-#
-#
+# + operate on selection only (VERT/EDGE, FACE)
+# + convert to weights
+# + weights to channel
+# + quick channel preview / view as greyscale / isolate
+# + implement support for alpha (see recent vertex painting commits and try with build)
+# + massive code cleanup
 
 import bpy
 from bpy.props import (
