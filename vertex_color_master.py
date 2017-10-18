@@ -66,6 +66,7 @@ green_id = 'G'
 blue_id = 'B'
 alpha_id = 'A'
 
+
 ##### HELPER FUNCTIONS #####
 def set_channels_visible(object, active_channels):
   return None
@@ -154,6 +155,59 @@ def copy_rgb_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channe
   mesh.update()
 
 
+def blend_channels(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, operation='Add'):
+    # validate input
+  if mesh.vertex_colors is None:
+    print("mesh has no vertex colors")
+    return
+  src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
+  dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
+
+  if src_vcol is None or dst_vcol is None:
+    print("source or destination are invalid")
+    return
+
+  print("MODE IS: " + operation)
+
+  if operation == 'Add':
+    print('add my balls')
+    for loop_index, loop in enumerate(mesh.loops):
+      val = src_vcol.data[loop_index].color[src_channel_idx] + dst_vcol.data[loop_index].color[dst_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = max(0.0, min(val, 1.0)) # clamp
+  elif operation == 'Subtract':
+    for loop_index, loop in enumerate(mesh.loops):
+      val = src_vcol.data[loop_index].color[src_channel_idx] - dst_vcol.data[loop_index].color[dst_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = max(0.0, min(val, 1.0)) # clamp
+  elif operation == 'Multiply':
+    for loop_index, loop in enumerate(mesh.loops):
+      val = src_vcol.data[loop_index].color[src_channel_idx] * dst_vcol.data[loop_index].color[dst_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = val
+  elif operation == 'Divide':
+    for loop_index, loop in enumerate(mesh.loops):
+      src = src_vcol.data[loop_index].color[src_channel_idx]
+      dst = dst_vcol.data[loop_index].color[dst_channel_idx]
+      val = 1.0 if dst == 0.0 else src / dst
+      dst_vcol.data[loop_index].color[dst_channel_idx] = val
+  elif operation == 'Lighten':
+    for loop_index, loop in enumerate(mesh.loops):
+      src = src_vcol.data[loop_index].color[src_channel_idx]
+      dst = dst_vcol.data[loop_index].color[dst_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = src if src > dst else dst
+  elif operation == 'Darken':
+    for loop_index, loop in enumerate(mesh.loops):
+      src = src_vcol.data[loop_index].color[src_channel_idx]
+      dst = dst_vcol.data[loop_index].color[dst_channel_idx]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = src if src < dst else dst
+  elif operation == 'Mix':
+    for loop_index, loop in enumerate(mesh.loops):
+      dst_vcol.data[loop_index].color[dst_channel_idx] = src_vcol.data[loop_index].color[src_channel_idx]
+  else:
+    return
+
+  mesh.update()
+
+
+
 ##### MAIN OPERATOR CLASSES #####
 class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
   """Convert the RGB color of a vertex color layer to a grayscale value"""
@@ -216,6 +270,45 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
     copy_rgb_channel(mesh, src_id, dst_id, src_channel_idx, dst_channel_idx, self.swap_channels, self.all_channels)
 
     return {'FINISHED'}
+
+
+class VertexColorMaster_BlendChannels(bpy.types.Operator):
+  """Blend source and destination channels (result is saved in destination)"""
+  bl_idname = 'vertexcolormaster.blend_channels'
+  bl_label = 'VCM Blend Channels'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  blend_modes = (('Add', "Add", ""),
+    ('Subtract', "Subtract", ""),
+    ('Multiply', "Multiply", ""),
+    ('Divide', "Divide", ""),
+    ('Lighten', "Lighten",  ""),
+    ('Darken', "Darken", ""),
+    ('Mix', "Mix", ""))
+
+  mode = bpy.props.EnumProperty(
+    name = "blend mode",
+    items=blend_modes,
+    description="Blending operation",
+    default='Add'
+    )
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+    src_id = context.scene.src_vcol_id
+    dst_id = context.scene.dst_vcol_id
+    src_channel_idx = channel_id_to_idx(context.scene.src_channel_id)
+    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
+    mesh = context.active_object.data
+
+    blend_channels(mesh, src_id, dst_id, src_channel_idx, dst_channel_idx, self.mode)
+
+    return {'FINISHED'}
+  
 
 
 class VertexColorMaster_Fill(bpy.types.Operator):
@@ -377,7 +470,6 @@ class VertexColorMaster(bpy.types.Panel):
 
     bpy.data.brushes['Draw'].color = draw_color
 
-    # update rgba of vertex colors shown in viewport to match mask
     return None
 
   channel_items = ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""))#, (alpha_id, "A", ""))
@@ -430,15 +522,10 @@ class VertexColorMaster(bpy.types.Panel):
     description="Destination color channel"
     )
 
-
-  # @classmethod
-  # def poll(cls, context):
-  #   active_obj = context.active_object
-  #   return active_obj != None and active_obj.type == 'MESH'
-
   def draw(self, context):
     layout = self.layout
 
+    # Brush Settings
     brush = bpy.data.brushes['Draw']
     col = layout.column(align=True)
     row = col.row()
@@ -447,20 +534,26 @@ class VertexColorMaster(bpy.types.Panel):
     row.prop(brush, 'color', text = "")
     row.prop(context.scene, 'brush_value', 'Val')
 
+    layout.separator()
+
+    # Active Channel Operations
     col = layout.column(align=True)
     row = col.row()
     row.label('Active Channels')
     row = col.row()
     row.prop(context.scene, 'active_channels', expand=True)
 
-    layout.separator()
-    row = layout.row(align = True)
+    col = layout.column(align=True)
+    row = col.row(align = True)
     row.operator('vertexcolormaster.fill', 'Fill').value = 1.0
     row.operator('vertexcolormaster.fill', 'Clear').value = 0.0
-    row = layout.row(align = True)
+    row = col.row(align = True)
     row.operator('vertexcolormaster.invert', 'Invert')
     row.operator('vertexcolormaster.posterize', 'Posterize')
 
+    layout.separator()
+
+    # Source->Destination Channel Operations
     lcol_percentage = 0.8
     row = layout.row()
     split = row.split(lcol_percentage, align=True)
@@ -478,11 +571,29 @@ class VertexColorMaster(bpy.types.Panel):
     col = split.column(align=True)
     col.prop(context.scene, 'dst_channel_id', '')
 
+    # col = layout.column(align=True)
     row = layout.row(align=True)
     row.operator('vertexcolormaster.copy_channel', 'Copy').swap_channels = False
     row.operator('vertexcolormaster.copy_channel', 'Swap').swap_channels = True
-    row = layout.row()
-    row.operator('vertexcolormaster.rgb_to_grayscale', 'Convert to Grayscale')
+
+    col = layout.column(align=True)
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.blend_channels', 'Add').mode = 'Add'
+    row.operator('vertexcolormaster.blend_channels', 'Subtract').mode = 'Subtract'
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.blend_channels', 'Multiply').mode = 'Multiply'
+    row.operator('vertexcolormaster.blend_channels', 'Divide').mode = 'Divide'
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.blend_channels', 'Lighten').mode = 'Lighten'
+    row.operator('vertexcolormaster.blend_channels', 'Darken').mode = 'Darken'
+
+    row = layout.row(align=True)
+    row.operator('vertexcolormaster.rgb_to_grayscale', 'Src RGB to Grayscale')
+    # add, subtract, multiply, divide, (and, or, xor?)
+    # range
+    # to weights, from weights
+
+    # manage vertex color layers (copy ui from obj data?)
 
 
 ##### OPERATOR REGISTRATION #####
@@ -493,6 +604,7 @@ def register():
   bpy.utils.register_class(VertexColorMaster_Posterize)
   bpy.utils.register_class(VertexColorMaster_CopyChannel)
   bpy.utils.register_class(VertexColorMaster_RgbToGrayscale)
+  bpy.utils.register_class(VertexColorMaster_BlendChannels)
 
 
 def unregister():
@@ -502,6 +614,7 @@ def unregister():
   bpy.utils.unregister_class(VertexColorMaster_Posterize)
   bpy.utils.unregister_class(VertexColorMaster_CopyChannel)
   bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
+  bpy.utils.unregister_class(VertexColorMaster_BlendChannels)
 
 
 # allows running addon from text editor
