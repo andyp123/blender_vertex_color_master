@@ -51,7 +51,6 @@ from bpy.props import (
         EnumProperty,
         )
 
-
 bl_info = {
   "name": "Vertex Color Master",
   "author": "Andrew Palmer",
@@ -74,6 +73,11 @@ def set_channels_visible(object, active_channels):
 def set_brush_params(brush_opacity, brush_mode, active_channels):
   return None
 
+
+def posterize(value, steps):
+  return round(value * steps) / steps
+
+
 def channel_id_to_idx(id):
   if id is red_id:
     return 0
@@ -85,6 +89,7 @@ def channel_id_to_idx(id):
     return 3
   # default to red
   return 0 
+
 
 def rgb_to_luminosity(color):
   # Y = 0.299 R + 0.587 G + 0.114 B
@@ -301,6 +306,53 @@ class VertexColorMaster_Invert(bpy.types.Operator):
     return {'FINISHED'}
 
 
+class VertexColorMaster_Posterize(bpy.types.Operator):
+  """Posterize active vertex color channel(s)"""
+  bl_idname = 'vertexcolormaster.posterize'
+  bl_label = 'VCM Posterize'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  steps = bpy.props.IntProperty(
+    name = "steps",
+    default = 2,
+    min = 2,
+    max = 256,
+    description = "Number of different grayscale values for posterization"
+    )
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+    active_channels = context.scene.active_channels
+    mesh = context.active_object.data
+
+    if mesh.vertex_colors:
+      vcol_layer = mesh.vertex_colors.active
+    else:
+      vcol_layer = mesh.vertex_colors.new()
+    
+    # using posterize(), 2 steps -> 3 tones, but best to have 2 steps -> 2 tones
+    steps = self.steps - 1 
+  
+    for loop_index, loop in enumerate(mesh.loops):
+      color = vcol_layer.data[loop_index].color
+      if red_id in active_channels:
+        color[0] = posterize(color[0], steps)
+      if green_id in active_channels:
+        color[1] = posterize(color[1], steps)
+      if blue_id in active_channels:
+        color[2] = posterize(color[2], steps)
+      vcol_layer.data[loop_index].color = color
+
+    mesh.vertex_colors.active = vcol_layer
+    mesh.update()
+
+    return {'FINISHED'}
+
+
 ##### MAIN CLASS, UI AND REGISTRATION #####
 class VertexColorMaster(bpy.types.Panel):
   """COMMENT"""
@@ -405,8 +457,9 @@ class VertexColorMaster(bpy.types.Panel):
     row = layout.row(align = True)
     row.operator('vertexcolormaster.fill', 'Fill').value = 1.0
     row.operator('vertexcolormaster.fill', 'Clear').value = 0.0
-    row = layout.row()
-    row.operator('vertexcolormaster.invert', 'Invert channel(s)')
+    row = layout.row(align = True)
+    row.operator('vertexcolormaster.invert', 'Invert')
+    row.operator('vertexcolormaster.posterize', 'Posterize')
 
     lcol_percentage = 0.8
     row = layout.row()
@@ -437,6 +490,7 @@ def register():
   bpy.utils.register_class(VertexColorMaster)
   bpy.utils.register_class(VertexColorMaster_Fill)
   bpy.utils.register_class(VertexColorMaster_Invert)
+  bpy.utils.register_class(VertexColorMaster_Posterize)
   bpy.utils.register_class(VertexColorMaster_CopyChannel)
   bpy.utils.register_class(VertexColorMaster_RgbToGrayscale)
 
@@ -445,6 +499,7 @@ def unregister():
   bpy.utils.unregister_class(VertexColorMaster)
   bpy.utils.unregister_class(VertexColorMaster_Fill)
   bpy.utils.unregister_class(VertexColorMaster_Invert)
+  bpy.utils.unregister_class(VertexColorMaster_Posterize)
   bpy.utils.unregister_class(VertexColorMaster_CopyChannel)
   bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
 
