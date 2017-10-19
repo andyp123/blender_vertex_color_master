@@ -19,10 +19,13 @@
 # TODO:
 # + operate on selection only (VERT/EDGE, FACE)
 # + convert to weights
-# + weights to channel
 # + quick channel preview / view as greyscale / isolate
 # + implement support for alpha (see recent vertex painting commits and try with build)
 # + massive code cleanup
+
+# CLEANUP TODO:
+# move input evaluation code out of helpers to operators
+# clean up context.scene.[my_variable] stuff and put in correct place
 
 import bpy
 from bpy.props import (
@@ -197,6 +200,75 @@ def blend_channels(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_
 
 
 ##### MAIN OPERATOR CLASSES #####
+class VertexColorMaster_ColorToWeights(bpy.types.Operator):
+  """Copy vertex color channel to vertex group weights"""
+  bl_idname = 'vertexcolormaster.color_to_weights'
+  bl_label = 'VCM Color to weights'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+    return {'FINISHED'}
+
+
+class VertexColorMaster_WeightsToColor(bpy.types.Operator):
+  """Copy vertex group weights to vertex color channel"""
+  bl_idname = 'vertexcolormaster.weights_to_color'
+  bl_label = 'VCM Weights to color'
+  bl_options = {'REGISTER', 'UNDO'}
+
+  @classmethod
+  def poll(cls, context):
+    active_obj = context.active_object
+    return active_obj != None and active_obj.type == 'MESH'
+
+  def execute(self, context):
+    obj = context.active_object
+    mesh = obj.data
+    vertex_count = len(mesh.vertices)
+
+    if mesh.vertex_colors is None:
+      return {'FINISHED'}
+    dst_vcol_id = context.scene.dst_vcol_id
+    dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
+    if dst_vcol is None:
+      return {'FINISHED'}
+    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
+
+    src_group_id = context.scene.src_vcol_id
+    group_index = -1 # get correct vertex group index
+    for group in obj.vertex_groups:
+      if group.name == src_group_id:
+        group_index = group.index
+    if group_index < 0:
+      return {'FINISHED'}
+
+    vertex_weights = []
+
+    # build list of weights for vertex indices
+    for v in mesh.vertices:
+      added = False
+      for g in v.groups:
+        if g.group == group_index:
+          vertex_weights.append(g.weight)
+          added = True
+          break
+      if not added:
+        vertex_weights.append(0.0)
+
+    # copy weights to channel of dst color layer
+    for loop_index, loop in enumerate(mesh.loops):
+      weight = vertex_weights[loop.vertex_index]
+      dst_vcol.data[loop_index].color[dst_channel_idx] = weight
+
+    return {'FINISHED'}
+
+
+
 class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
   """Convert the RGB color of a vertex color layer to a grayscale value"""
   bl_idname = 'vertexcolormaster.rgb_to_grayscale'
@@ -506,10 +578,13 @@ class VertexColorMaster(bpy.types.Panel):
     )
 
   def vcol_layer_items(self, context):
+    obj = context.active_object
     mesh = context.active_object.data
-    if mesh.vertex_colors == None:
-      return [('', '', '')]
-    return [(vcol.name, vcol.name, '') for vcol in mesh.vertex_colors]
+    vertex_colors = [] if mesh.vertex_colors is None else [(vcol.name, vcol.name, '') for vcol in mesh.vertex_colors]
+    vertex_groups = [(group.name, 'W: ' + group.name, '') for group in obj.vertex_groups]
+    vertex_colors.extend(vertex_groups)
+
+    return vertex_colors
 
   bpy.types.Scene.src_vcol_id = EnumProperty(
     name="Source Layer",
@@ -543,6 +618,8 @@ class VertexColorMaster(bpy.types.Panel):
 
   def draw(self, context):
     layout = self.layout
+    scn = context.scene
+    obj = context.active_object
 
     # Brush Settings
     brush = bpy.data.brushes['Draw']
@@ -551,7 +628,7 @@ class VertexColorMaster(bpy.types.Panel):
     row.label('Brush Settings')
     row = col.row(align=True)
     row.prop(brush, 'color', text = "")
-    row.prop(context.scene, 'brush_value', 'Val', slider=True)
+    row.prop(scn, 'brush_value', 'Val', slider=True)
 
     col = layout.column(align=True)
     row = col.row(align=True)
@@ -576,7 +653,7 @@ class VertexColorMaster(bpy.types.Panel):
     row = col.row()
     row.label('Active Channels')
     row = col.row()
-    row.prop(context.scene, 'active_channels', expand=True)
+    row.prop(scn, 'active_channels', expand=True)
 
     col = layout.column(align=True)
     row = col.row(align = True)
@@ -589,40 +666,58 @@ class VertexColorMaster(bpy.types.Panel):
     layout.separator()
 
     # Source->Destination Channel Operations
+    col = layout.column(align=True)
+    row = col.row()
+    row.label('Channel/Weights Transfer')
+    src_is_vg = scn.src_vcol_id in obj.vertex_groups
+    dst_is_vg = scn.dst_vcol_id in obj.vertex_groups
+
     lcol_percentage = 0.8
     row = layout.row()
     split = row.split(lcol_percentage, align=True)
     col = split.column(align=True)
-    col.prop(context.scene, 'src_vcol_id', 'Src')
+    col.prop(scn, 'src_vcol_id', 'Src')
     split = split.split(align=True)
     col = split.column(align=True)
-    col.prop(context.scene, 'src_channel_id', '')
+    col.prop(scn, 'src_channel_id', '')
+    col.enabled = not src_is_vg
 
     row = layout.row()
     split = row.split(lcol_percentage, align=True)
     col = split.column(align=True)
-    col.prop(context.scene, 'dst_vcol_id', 'Dst')
+    col.prop(scn, 'dst_vcol_id', 'Dst')
     split = split.split(align=True)
     col = split.column(align=True)
-    col.prop(context.scene, 'dst_channel_id', '')
+    col.prop(scn, 'dst_channel_id', '')
+    col.enabled = not dst_is_vg
 
-    row = layout.row(align=True)
-    row.operator('vertexcolormaster.copy_channel', 'Copy').swap_channels = False
-    row.operator('vertexcolormaster.copy_channel', 'Swap').swap_channels = True
+    if not (src_is_vg or dst_is_vg):
+      row = layout.row(align=True)
+      row.operator('vertexcolormaster.copy_channel', 'Copy').swap_channels = False
+      row.operator('vertexcolormaster.copy_channel', 'Swap').swap_channels = True
 
-    col = layout.column(align=True)
-    row = col.row()
-    row.operator('vertexcolormaster.blend_channels', 'Blend').blend_mode = context.scene.channel_blend_mode
-    row.prop(context.scene, 'channel_blend_mode', '')
+      col = layout.column(align=True)
+      row = col.row()
+      row.operator('vertexcolormaster.blend_channels', 'Blend').blend_mode = scn.channel_blend_mode
+      row.prop(scn, 'channel_blend_mode', '')
 
-    col = layout.column(align=True)
-    row = col.row(align=True)
-    row.operator('vertexcolormaster.rgb_to_grayscale', 'Src RGB to luminosity')
-    row = col.row(align=True)
-    row.operator('vertexcolormaster.copy_channel', 'Src ({0}) channel to all'.format(context.scene.src_channel_id)).all_channels = True
+      col = layout.column(align=True)
+      row = col.row(align=True)
+      row.operator('vertexcolormaster.rgb_to_grayscale', 'Src RGB to luminosity')
+      row = col.row(align=True)
+      row.operator('vertexcolormaster.copy_channel', 'Src ({0}) to Dst RGB'.format(scn.src_channel_id)).all_channels = True
+    elif src_is_vg and not dst_is_vg:
+      row = layout.row(align=True)
+      row.operator('vertexcolormaster.weights_to_color', 'Weights to Dst ({0})'.format(scn.src_channel_id))
+    elif dst_is_vg and not src_is_vg:
+      row = layout.row(align=True)
+      row.operator('vertexcolormaster.color_to_weights', 'Src ({0}) to Weights'.format(scn.src_channel_id))
+    # else: # src_is_vg and dst_is_vg
+      # row = layout.row(align=True)
+      # row.operator('vertexcolormaster.copy_channel', 'Copy')
+      # row.operator('vertexcolormaster.copy_channel', 'Swap')
 
     # scale val to range
-    # to weights, from weights
 
     # manage vertex color layers (copy ui from obj data?)
 
@@ -638,6 +733,9 @@ def register():
   bpy.utils.register_class(VertexColorMaster_BlendChannels)
   bpy.utils.register_class(VertexColorMaster_EditBrushSettings)
 
+  bpy.utils.register_class(VertexColorMaster_WeightsToColor)
+  bpy.utils.register_class(VertexColorMaster_ColorToWeights)
+
 
 def unregister():
   bpy.utils.unregister_class(VertexColorMaster)
@@ -648,6 +746,9 @@ def unregister():
   bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
   bpy.utils.unregister_class(VertexColorMaster_BlendChannels)
   bpy.utils.unregister_class(VertexColorMaster_EditBrushSettings)
+
+  bpy.utils.unregister_class(VertexColorMaster_WeightsToColor)
+  bpy.utils.unregister_class(VertexColorMaster_ColorToWeights)
 
 
 # allows running addon from text editor
