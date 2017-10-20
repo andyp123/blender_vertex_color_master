@@ -18,7 +18,6 @@
 
 # TODO:
 # + operate on selection only (VERT/EDGE, FACE)
-# + convert to weights
 # + quick channel preview / view as greyscale / isolate
 # + implement support for alpha (see recent vertex painting commits and try with build)
 # + massive code cleanup
@@ -69,7 +68,10 @@ channel_blend_mode_items = (('ADD', "Add", ""),
   ('DARKEN', "Darken", ""),
   ('MIX', "Mix", ""))
 
-##### HELPER FUNCTIONS #####
+###############################################################################
+####  HELPER FUNCTIONS
+###############################################################################
+
 def posterize(value, steps):
   return round(value * steps) / steps
 
@@ -150,47 +152,36 @@ def copy_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_id
   mesh.update()
 
 
-def blend_channels(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, result_channel_idx, operation='Add'):
-    # validate input
-  if mesh.vertex_colors is None:
-    print("mesh has no vertex colors")
-    return
-  src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
-  dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
-
-  if src_vcol is None or dst_vcol is None:
-    print("source or destination are invalid")
-    return
-
-  if operation == 'Add':
+def blend_channels(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, result_channel_idx, operation='ADD'):
+  if operation == 'ADD':
     for loop_index, loop in enumerate(mesh.loops):
       val = src_vcol.data[loop_index].color[src_channel_idx] + dst_vcol.data[loop_index].color[dst_channel_idx]
       dst_vcol.data[loop_index].color[result_channel_idx] = max(0.0, min(val, 1.0)) # clamp
-  elif operation == 'Subtract':
+  elif operation == 'SUB':
     for loop_index, loop in enumerate(mesh.loops):
       val = src_vcol.data[loop_index].color[src_channel_idx] - dst_vcol.data[loop_index].color[dst_channel_idx]
       dst_vcol.data[loop_index].color[result_channel_idx] = max(0.0, min(val, 1.0)) # clamp
-  elif operation == 'Multiply':
+  elif operation == 'MUL':
     for loop_index, loop in enumerate(mesh.loops):
       val = src_vcol.data[loop_index].color[src_channel_idx] * dst_vcol.data[loop_index].color[dst_channel_idx]
       dst_vcol.data[loop_index].color[result_channel_idx] = val
-  elif operation == 'Divide':
+  elif operation == 'DIV':
     for loop_index, loop in enumerate(mesh.loops):
       src = src_vcol.data[loop_index].color[src_channel_idx]
       dst = dst_vcol.data[loop_index].color[dst_channel_idx]
       val = 0.0 if src == 0.0 else 1.0 if dst == 0.0 else src / dst
       dst_vcol.data[loop_index].color[result_channel_idx] = val
-  elif operation == 'Lighten':
+  elif operation == 'LIGHTEN':
     for loop_index, loop in enumerate(mesh.loops):
       src = src_vcol.data[loop_index].color[src_channel_idx]
       dst = dst_vcol.data[loop_index].color[dst_channel_idx]
       dst_vcol.data[loop_index].color[result_channel_idx] = src if src > dst else dst
-  elif operation == 'Darken':
+  elif operation == 'DARKEN':
     for loop_index, loop in enumerate(mesh.loops):
       src = src_vcol.data[loop_index].color[src_channel_idx]
       dst = dst_vcol.data[loop_index].color[dst_channel_idx]
       dst_vcol.data[loop_index].color[result_channel_idx] = src if src < dst else dst
-  elif operation == 'Mix':
+  elif operation == 'MIX':
     for loop_index, loop in enumerate(mesh.loops):
       dst_vcol.data[loop_index].color[result_channel_idx] = src_vcol.data[loop_index].color[src_channel_idx]
   else:
@@ -244,7 +235,10 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
 
 
 
-##### MAIN OPERATOR CLASSES #####
+###############################################################################
+####  MAIN OPERATOR CLASSES
+###############################################################################
+
 class VertexColorMaster_ColorToWeights(bpy.types.Operator):
   """Copy vertex color channel to vertex group weights"""
   bl_idname = 'vertexcolormaster.color_to_weights'
@@ -415,18 +409,27 @@ class VertexColorMaster_BlendChannels(bpy.types.Operator):
     return self.execute(context)
 
   def execute(self, context):
-    src_id = context.scene.src_vcol_id
-    dst_id = context.scene.dst_vcol_id
-    src_channel_idx = channel_id_to_idx(context.scene.src_channel_id)
-    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
-    result_channel_idx = channel_id_to_idx(self.result_channel_id)
     mesh = context.active_object.data
+    scn = context.scene
 
-    blend_channels(mesh, src_id, dst_id, src_channel_idx, dst_channel_idx, result_channel_idx, self.mode)
+    # validate input
+    if mesh.vertex_colors is None:
+      return {'FINISHED'}
+
+    src_vcol = None if scn.src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[scn.src_vcol_id]
+    dst_vcol = None if scn.dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[scn.dst_vcol_id]
+
+    if src_vcol is None or dst_vcol is None:
+      return {'FINISHED'}
+
+    src_channel_idx = channel_id_to_idx(scn.src_channel_id)
+    dst_channel_idx = channel_id_to_idx(scn.dst_channel_id)
+    result_channel_idx = channel_id_to_idx(self.result_channel_id)
+
+    blend_channels(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, result_channel_idx, self.blend_mode)
 
     return {'FINISHED'}
   
-
 
 class VertexColorMaster_Fill(bpy.types.Operator):
   """Fill the active vertex color channel(s)"""
@@ -562,6 +565,7 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
 
     return {'FINISHED'}
 
+
 class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
   """Set vertex paint brush settings from panel buttons"""
   bl_idname = 'vertexcolormaster.edit_brush_settings'
@@ -574,11 +578,6 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
     items=brush_blend_mode_items
     )
 
-  @classmethod
-  def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
-
   def execute(self, context):
     brush = bpy.data.brushes['Draw']
     brush.vertex_tool = self.blend_mode
@@ -586,8 +585,10 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
     return {'FINISHED'}
 
 
+###############################################################################
+####  MAIN CLASS, UI AND REGISTRATION
+###############################################################################
 
-##### MAIN CLASS, UI AND REGISTRATION #####
 class VertexColorMaster(bpy.types.Panel):
   """COMMENT"""
   bl_space_type = 'VIEW_3D'
@@ -767,16 +768,13 @@ class VertexColorMaster(bpy.types.Panel):
       row = layout.row(align=True)
       row.operator('vertexcolormaster.color_to_weights', 'Src ({0}) to Weights'.format(scn.src_channel_id))
     # else: # src_is_vg and dst_is_vg
-      # row = layout.row(align=True)
-      # row.operator('vertexcolormaster.copy_channel', 'Copy')
-      # row.operator('vertexcolormaster.copy_channel', 'Swap')
-
-    # scale val to range
-
-    # manage vertex color layers (copy ui from obj data?)
 
 
-##### OPERATOR REGISTRATION #####
+
+###############################################################################
+####  OPERATOR REGISTRATION
+###############################################################################
+
 def register():
   bpy.utils.register_class(VertexColorMaster)
   bpy.utils.register_class(VertexColorMaster_Fill)
