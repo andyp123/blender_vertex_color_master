@@ -26,6 +26,7 @@
 # CLEANUP TODO:
 # move input evaluation code out of helpers to operators
 # clean up context.scene.[my_variable] stuff and put in correct place
+# optimisation such as getting rid of append operations if array size is known
 
 import bpy
 from bpy.props import (
@@ -198,6 +199,50 @@ def blend_channels(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_
   mesh.update()
 
 
+def weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx):
+  vertex_weights = [0.0]*len(mesh.vertices)
+
+  # build list of weights for vertex indices
+  for i, vert in enumerate(mesh.vertices):
+    for group in vert.groups:
+      if group.group == src_vgroup_idx:
+        vertex_weights[i] = group.weight
+        break
+
+  # copy weights to channel of dst color layer
+  for loop_index, loop in enumerate(mesh.loops):
+    weight = vertex_weights[loop.vertex_index]
+    dst_vcol.data[loop_index].color[dst_channel_idx] = weight
+
+  mesh.update()
+
+
+def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
+  mesh = obj.data
+
+  # build 2d array containing sum of color channel value, number of values
+  # use this to create an average when setting weights
+  vertex_values = [[0.0, 0] for i in range(0, len(mesh.vertices))]
+
+  for loop_index, loop in enumerate(mesh.loops):
+    vi = loop.vertex_index
+    vertex_values[vi][0] += src_vcol.data[loop_index].color[src_channel_idx]
+    vertex_values[vi][1] += 1
+
+  # replace weights of the destination group
+  group = obj.vertex_groups[dst_vgroup_idx]
+  mode = 'REPLACE'
+
+  for i in range(0, len(mesh.vertices)):
+    cnt = vertex_values[i][1]
+    weight = 0.0 if cnt == 0.0 else vertex_values[i][0] / cnt
+    group.add([i], weight, mode)
+
+  mesh.update()
+
+  return
+
+
 
 ##### MAIN OPERATOR CLASSES #####
 class VertexColorMaster_ColorToWeights(bpy.types.Operator):
@@ -212,6 +257,30 @@ class VertexColorMaster_ColorToWeights(bpy.types.Operator):
     return active_obj != None and active_obj.type == 'MESH'
 
   def execute(self, context):
+    obj = context.active_object
+    mesh = obj.data
+
+    # validate input
+    if mesh.vertex_colors is None:
+      return {'FINISHED'}
+    src_vcol_id = context.scene.src_vcol_id
+    if src_vcol_id not in mesh.vertex_colors:
+      return {'FINISHED'}
+    src_vcol = mesh.vertex_colors[src_vcol_id]
+    src_channel_idx = channel_id_to_idx(context.scene.src_channel_id)
+
+    # get correct vertex group index
+    dst_group_id = context.scene.dst_vcol_id
+    dst_vgroup_idx = -1
+    for group in obj.vertex_groups:
+      if group.name == dst_group_id:
+        dst_vgroup_idx = group.index
+        break
+    if dst_vgroup_idx < 0:
+      return {'FINISHED'}
+
+    color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx)
+
     return {'FINISHED'}
 
 
@@ -229,44 +298,29 @@ class VertexColorMaster_WeightsToColor(bpy.types.Operator):
   def execute(self, context):
     obj = context.active_object
     mesh = obj.data
-    vertex_count = len(mesh.vertices)
 
+    # validate input
     if mesh.vertex_colors is None:
       return {'FINISHED'}
     dst_vcol_id = context.scene.dst_vcol_id
-    dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
-    if dst_vcol is None:
+    if dst_vcol_id not in mesh.vertex_colors:
       return {'FINISHED'}
+    dst_vcol = mesh.vertex_colors[dst_vcol_id]
     dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
 
+    # get correct vertex group index
     src_group_id = context.scene.src_vcol_id
-    group_index = -1 # get correct vertex group index
+    src_vgroup_idx = -1
     for group in obj.vertex_groups:
       if group.name == src_group_id:
-        group_index = group.index
-    if group_index < 0:
+        src_vgroup_idx = group.index
+        break
+    if src_vgroup_idx < 0:
       return {'FINISHED'}
 
-    vertex_weights = []
-
-    # build list of weights for vertex indices
-    for v in mesh.vertices:
-      added = False
-      for g in v.groups:
-        if g.group == group_index:
-          vertex_weights.append(g.weight)
-          added = True
-          break
-      if not added:
-        vertex_weights.append(0.0)
-
-    # copy weights to channel of dst color layer
-    for loop_index, loop in enumerate(mesh.loops):
-      weight = vertex_weights[loop.vertex_index]
-      dst_vcol.data[loop_index].color[dst_channel_idx] = weight
+    weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx)
 
     return {'FINISHED'}
-
 
 
 class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
