@@ -94,18 +94,7 @@ def rgb_to_luminosity(color):
   return color[0]*0.299 + color[1]*0.587 + color[2]*0.114
 
 
-def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, dst_all_channels=False):
-  # validate input
-  if mesh.vertex_colors is None:
-    print("mesh has no vertex colors")
-    return
-  src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
-  dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
-
-  if src_vcol is None or dst_vcol is None:
-    print("source or destination are invalid")
-    return
-
+def convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, dst_all_channels=False):
   # convert color to luminosity
   if dst_all_channels:
     for loop_index, loop in enumerate(mesh.loops):
@@ -117,28 +106,12 @@ def convert_rgb_to_luminosity(mesh, src_vcol_id, dst_vcol_id, dst_channel_idx, d
       dst_vcol.data[loop_index].color[dst_channel_idx] = luminosity
 
 
-def copy_channel(mesh, src_vcol_id, dst_vcol_id, src_channel_idx, dst_channel_idx, swap=False, dst_all_channels=False):
-  # validate input
-  if mesh.vertex_colors is None:
-    print("mesh has no vertex colors")
-    return
-  src_vcol = None if src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[src_vcol_id]
-  dst_vcol = None if dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[dst_vcol_id]
-
-  if src_vcol is None or dst_vcol is None:
-    print("source or destination are invalid")
-    return
-
+def copy_channel(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, swap=False, dst_all_channels=False):
   if dst_all_channels:
     for loop_index, loop in enumerate(mesh.loops):
       src_val = src_vcol.data[loop_index].color[src_channel_idx]
       dst_vcol.data[loop_index].color = [src_val]*3
   else:
-    if src_vcol == dst_vcol and src_channel_idx == dst_channel_idx:
-      print("source and destination are the same")
-      return
-
-    # perfrom channel copy/swap
     if swap:
       for loop_index, loop in enumerate(mesh.loops):
         src_val = src_vcol.data[loop_index].color[src_channel_idx]
@@ -230,8 +203,6 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
     group.add([i], weight, mode)
 
   mesh.update()
-
-  return
 
 
 
@@ -335,12 +306,22 @@ class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
     return active_obj != None and active_obj.type == 'MESH'
 
   def execute(self, context):
-    src_id = context.scene.src_vcol_id
-    dst_id = context.scene.dst_vcol_id
-    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
     mesh = context.active_object.data
+    scn = context.scene
 
-    convert_rgb_to_luminosity(mesh, src_id, dst_id, dst_channel_idx, self.all_channels)
+    # validate input
+    if mesh.vertex_colors is None:
+      return {'FINISHED'}
+
+    src_vcol = None if scn.src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[scn.src_vcol_id]
+    dst_vcol = None if scn.dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[scn.dst_vcol_id]
+
+    if src_vcol is None or dst_vcol is None:
+      return {'FINISHED'}
+
+    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
+
+    convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, self.all_channels)
 
     return {'FINISHED'}
 
@@ -369,13 +350,23 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
     return active_obj != None and active_obj.type == 'MESH'
 
   def execute(self, context):
-    src_id = context.scene.src_vcol_id
-    dst_id = context.scene.dst_vcol_id
-    src_channel_idx = channel_id_to_idx(context.scene.src_channel_id)
-    dst_channel_idx = channel_id_to_idx(context.scene.dst_channel_id)
     mesh = context.active_object.data
+    scn = context.scene
 
-    copy_channel(mesh, src_id, dst_id, src_channel_idx, dst_channel_idx, self.swap_channels, self.all_channels)
+    # validate input
+    if mesh.vertex_colors is None:
+      return {'FINISHED'}
+
+    src_vcol = None if scn.src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[scn.src_vcol_id]
+    dst_vcol = None if scn.dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[scn.dst_vcol_id]
+
+    if src_vcol is None or dst_vcol is None:
+      return {'FINISHED'}
+
+    src_channel_idx = channel_id_to_idx(scn.src_channel_id)
+    dst_channel_idx = channel_id_to_idx(scn.dst_channel_id)
+
+    copy_channel(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, self.swap_channels, self.all_channels)
 
     return {'FINISHED'}
 
@@ -698,6 +689,8 @@ class VertexColorMaster(bpy.types.Panel):
     row.operator('vertexcolormaster.edit_brush_settings', "Subtract").blend_mode = 'SUB'
     row = col.row(align=True)
     row.operator('vertexcolormaster.edit_brush_settings', "Multiply").blend_mode = 'MUL'
+    row.operator('vertexcolormaster.edit_brush_settings', "Blur").blend_mode = 'BLUR'
+    row = col.row(align=True)
     row.operator('vertexcolormaster.edit_brush_settings', "Lighten").blend_mode = 'LIGHTEN'
     row.operator('vertexcolormaster.edit_brush_settings', "Darken").blend_mode = 'DARKEN'
 
@@ -784,7 +777,6 @@ def register():
   bpy.utils.register_class(VertexColorMaster_RgbToGrayscale)
   bpy.utils.register_class(VertexColorMaster_BlendChannels)
   bpy.utils.register_class(VertexColorMaster_EditBrushSettings)
-
   bpy.utils.register_class(VertexColorMaster_WeightsToColor)
   bpy.utils.register_class(VertexColorMaster_ColorToWeights)
 
@@ -798,7 +790,6 @@ def unregister():
   bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
   bpy.utils.unregister_class(VertexColorMaster_BlendChannels)
   bpy.utils.unregister_class(VertexColorMaster_EditBrushSettings)
-
   bpy.utils.unregister_class(VertexColorMaster_WeightsToColor)
   bpy.utils.unregister_class(VertexColorMaster_ColorToWeights)
 
