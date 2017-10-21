@@ -79,3 +79,11 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 
 ### Src to Weights
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
+
+## Planned Features
+* Active Channel functions selection only option to operate just on selected elements (vertex, face).
+* Channel isolation mode for painting grayscale and saving to a channel more easily.
+* Improve alpha support:
+  - Auto detect support instead of enabling it in preferences.
+  - Enable RGB channels in Active Channels by default.
+* Add more operator inputs to the Redo panel.
