@@ -9,7 +9,7 @@ An add-on for Blender that adds numerous features to assist working with vertex 
 5. Search for the add-on in the list (enter 'vertex' to quickly find it) and enable it.
 6. Save the user settings if you would like the script to always be enabled.
 
-__Note:__ If you are using a 2.79 based Buildbot version of Blender (available [here](https://builder.blender.org/download/)), you may use vertex color alpha, which must be enabled in the add-on preferences. To do this, click on the small arrow to the left of the add-on name in the Add-ons tab and under Preferences enable 'Alpha Support'. If you don't have a compatible version of Blender, enabling alpha support will result in errors.
+__Note:__ If you are using a 2.79 based Buildbot version of Blender (available [here](https://builder.blender.org/download/)), you may use vertex color alpha, which must be enabled in the add-on preferences. To do this, click on the small arrow to the left of the add-on name in the Add-ons tab, and under Preferences enable 'Alpha Support'. If you don't have a compatible version of Blender, enabling alpha support will result in errors.
 
 ## Usage
 This add-on is mostly designed for people who use vertex colors as extra non-color data, such as artists making models for games, where such data can be useful for creating interesting shader effects, or for storing baked light data. The tools provided by this add-on allow the user to fill, invert or posterize individual color channels, as well as copy or swap channels between layers and exchange vertex weight data to and from color channels.
@@ -81,7 +81,7 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
 
 ## Planned Features
-* Active Channel functions selection only option to operate just on selected elements (vertex, face).
+* 'Selection Only' option for the Active Channel functions to operate just on selected elements (vertex, face).
 * Channel isolation mode for painting grayscale and saving to a channel more easily.
 * Improve alpha support:
   - Auto detect support instead of enabling it in preferences.

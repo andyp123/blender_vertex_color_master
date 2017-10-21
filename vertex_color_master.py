@@ -239,7 +239,7 @@ class VertexColorMaster_ColorToWeights(bpy.types.Operator):
     src_channel_idx = channel_id_to_idx(settings.src_channel_id)
 
     # get correct vertex group index
-    dst_group_id = context.scene.dst_vcol_id
+    dst_group_id = settings.dst_vcol_id
     dst_vgroup_idx = -1
     for group in obj.vertex_groups:
       if group.name == dst_group_id:
