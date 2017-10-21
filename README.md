@@ -14,6 +14,10 @@ __Note:__ If you are using a 2.79 based Buildbot version of Blender (available [
 ## Usage
 This add-on is mostly designed for people who use vertex colors as extra non-color data, such as artists making models for games, where such data can be useful for creating interesting shader effects, or for storing baked light data. The tools provided by this add-on allow the user to fill, invert or posterize individual color channels, as well as copy or swap channels between layers and exchange vertex weight data to and from color channels.
 
+The add-on will appear in the Brush tab of the tools menu in vertex paint mode as shown in the following image.
+
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vertex_color_master.png)
+
 ## Functions
 
 ### Brush Settings
@@ -41,7 +45,7 @@ Inverts the value of the currently active channel(s).
 ### Posterize
 Posterize the value of the currently active channel(s). Useful for cleaning up channels where the value should be 0 or 1, or otherwise snapping the value to increments determined by the number of steps.
 
-+ __Steps__ (2) - The number of value steps to posterize to. For example, setting this to 5 would snap the values of the active channels to 0, 0.25, 0.5, 0.75 and 1, whilst leaving the default setting of 2, would result in black and white.
++ __Steps__ (2) - The number of value steps to posterize to. For example, setting this to 5 would snap the values of the active channel(s) to 0, 0.25, 0.5, 0.75 and 1, whilst leaving the default setting of 2, would result in black and white.
 
 ### Channel/Weights Transfer
 This section allows quick transfer of data between different vertex color and vertex groups on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled.
