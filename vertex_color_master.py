@@ -17,13 +17,13 @@
 
 
 # TODO:
-# + operate on selection only (VERT/EDGE, FACE)
-# + quick channel preview / view as greyscale / isolate
-# + add more operator options to REDO panel
-# + improve alpha support:
-#  - auto detect instead of enabled in prefs
-#  - enable RGB channels by default
-# + Fix inconsistent capitalization
+# + Operate on selection only (VERT/EDGE, FACE)
+# + Quick channel preview / view as greyscale / isolate
+# + Scale/change range of channel values
+# + Add more operator options to REDO panel
+# + Improve alpha support:
+#  - Auto detect instead of enabled in prefs
+#  - Enable RGB channels by default
 
 import bpy
 from bpy.props import *
@@ -218,7 +218,7 @@ def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_w
   message = None
 
   if not (src_is_weight and dst_is_weight) and mesh.vertex_colors is None:
-    message = "Object has no vertex colors"
+    message = "Object has no vertex colors."
 
   if get_src and message is None:
     if not src_is_weight:
@@ -265,7 +265,7 @@ def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_w
 class VertexColorMaster_ColorToWeights(bpy.types.Operator):
   """Copy vertex color channel to vertex group weights"""
   bl_idname = 'vertexcolormaster.color_to_weights'
-  bl_label = 'VCM Color to weights'
+  bl_label = 'VCM Color to Weights'
   bl_options = {'REGISTER', 'UNDO'}
 
   @classmethod
@@ -317,9 +317,9 @@ class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
   bl_options = {'REGISTER', 'UNDO'}
 
   all_channels = bpy.props.BoolProperty(
-    name = "all channels",
+    name = "All Channels",
     default = True,
-    description = "Put the grayscale value in all channels of the destination"
+    description = "Put the grayscale value into all channels of the destination."
     )
 
   @classmethod
@@ -347,15 +347,15 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
   bl_options = {'REGISTER', 'UNDO'}
 
   swap_channels = bpy.props.BoolProperty(
-    name = "swap channels",
+    name = "Swap Channels",
     default = False,
-    description = "Swap source and destination channels instead of copy"
+    description = "Swap source and destination channels instead of copying."
     )
 
   all_channels = bpy.props.BoolProperty(
-    name = "all channels",
+    name = "All Channels",
     default = False,
-    description = "Put the copied value in all channels of the destination"
+    description = "Put the copied value into all channels of the destination."
     )
 
   @classmethod
@@ -383,16 +383,16 @@ class VertexColorMaster_BlendChannels(bpy.types.Operator):
   bl_options = {'REGISTER', 'UNDO'}
 
   blend_mode = bpy.props.EnumProperty(
-    name = "blend mode",
+    name = "Blend Mode",
     items=channel_blend_mode_items,
-    description="Blending operation",
+    description="Blending operation used when the Src and Dst channels are blended.",
     default='ADD'
     )
 
   result_channel_id = EnumProperty(
     name="Result Channel",
     items=channel_items,
-    description="Use this channel instead of destination"
+    description="Use this channel instead of the Dst."
     )
 
   @classmethod
@@ -427,23 +427,23 @@ class VertexColorMaster_Fill(bpy.types.Operator):
   bl_options = {'REGISTER', 'UNDO'}
 
   value = bpy.props.FloatProperty(
-    name = "value",
+    name = "Value",
     default = 1.0,
     min = 0.0,
     max = 1.0,
-    description = "Value to fill channel(s) with"
+    description = "Value to fill channel(s) with."
     )
 
   clear_inactive = bpy.props.BoolProperty(
-    name = "clear inactive",
+    name = "Clear Inactive",
     default = False,
-    description = "Clear inactive channel(s)"
+    description = "Clear inactive channel(s)."
     )
 
   clear_alpha = bpy.props.BoolProperty(
-    name = "clear alpha",
+    name = "Clear Alpha",
     default = False,
-    description = "Clear the alpha channel, even if not active and clear inactive is enabled"
+    description = "Clear the alpha channel, even if not active and Clear Inactive is enabled."
     )
 
   def draw(self, context):
@@ -451,7 +451,7 @@ class VertexColorMaster_Fill(bpy.types.Operator):
     layout = self.layout
 
     col = layout.column()
-    col.prop(self, 'value')
+    col.prop(self, 'value', slider=True)
     col.prop(self, 'clear_inactive')
     if prefs.alpha_support and self.clear_inactive:
       col.prop(self, 'clear_alpha')
@@ -548,11 +548,11 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
   bl_options = {'REGISTER', 'UNDO'}
 
   steps = bpy.props.IntProperty(
-    name = "steps",
+    name = "Steps",
     default = 2,
     min = 2,
     max = 256,
-    description = "Number of different grayscale values for posterization"
+    description = "Number of different grayscale values for posterization of active channel(s)."
     )
 
   @classmethod
@@ -597,9 +597,10 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
   bl_options = {'REGISTER', 'UNDO'}
 
   blend_mode = EnumProperty(
-    name='blend mode',
+    name='Blend Mode',
     default='MIX',
-    items=brush_blend_mode_items
+    items=brush_blend_mode_items,
+    description="Blending method to use when painting with the brush."
     )
 
   @classmethod
@@ -664,7 +665,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
     name="Active Channels",
     options={'ENUM_FLAG'},
     items=channel_items,
-    description="Which channels to enable",
+    description="Which channels to enable.",
     # default={'R', 'G', 'B'},
     update=update_active_channels,
     )
@@ -672,7 +673,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
   match_brush_to_active_channels = BoolProperty(
     name="Match Active Channels",
     default=True,
-    description="Change the brush color to match the active channels",
+    description="Change the brush color to match the active channels.",
     update=update_active_channels
     )
 
@@ -690,7 +691,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
   brush_value = FloatProperty(
     name="Brush Value",
-    description="Value of the brush color",
+    description="Value of the brush color.",
     default=1.0,
     min=0.0,
     max=1.0,
@@ -709,33 +710,33 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
   src_vcol_id = EnumProperty(
     name="Source Layer",
     items=vcol_layer_items,
-    description="Source vertex color layer",
+    description="Source (Src) vertex color layer.",
     )
 
   src_channel_id = EnumProperty(
     name="Source Channel",
     items=channel_items,
     # default=red_id,
-    description="Source color channel"
+    description="Source (Src) color channel."
     )
 
   dst_vcol_id = EnumProperty(
     name="Destination Layer",
     items=vcol_layer_items,
-    description="Destination vertex color layer",
+    description="Destination (Dst) vertex color layer.",
     )
 
   dst_channel_id = EnumProperty(
     name="Destination Channel",
     items=channel_items,
     # default=green_id,
-    description="Destination color channel"
+    description="Destination (Dst) color channel."
     )
 
   channel_blend_mode = bpy.props.EnumProperty(
     name = "Channel Blend Mode",
     items=channel_blend_mode_items,
-    description="Channel blending operation",
+    description="Channel blending operation.",
     )
 
 
