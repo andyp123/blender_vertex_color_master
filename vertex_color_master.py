@@ -34,8 +34,8 @@ bl_info = {
   "author": "Andrew Palmer",
   "version": (0, 0, 1),
   "blender": (2, 79, 0),
-  "location": "",
-  "description": "Tools for working with vertex colors at greater precision than using the paint brush.",
+  "location": "View3D > Tools > Vertex Color Master",
+  "description": "Tools for manipulating vertex color data.",
   "category": "Paint"
 }
 
@@ -215,39 +215,41 @@ def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_w
 
   rv = {}
 
-  message = ""
+  message = None
 
   if not (src_is_weight and dst_is_weight) and mesh.vertex_colors is None:
     message = "Object has no vertex colors"
 
-  if get_src and message == "":
+  if get_src and message is None:
     if not src_is_weight:
       if settings.src_vcol_id in mesh.vertex_colors:
         rv['src_vcol'] = mesh.vertex_colors[settings.src_vcol_id]
-        rv['src_vcol_idx'] = channel_id_to_idx(settings.src_channel_id)
+        rv['src_channel_idx'] = channel_id_to_idx(settings.src_channel_id)
       else:
         message = "Src vertex color layer is not valid."
     else:
       src_vgroup_idx = -1
       for group in obj.vertex_groups:
         if group.name == settings.src_vcol_id:
-          rv['src_vgroup_idx'] = group.index
+          src_vgroup_idx = group.index
+          rv['src_vgroup_idx'] = src_vgroup_idx
           break
       if src_vgroup_idx < 0:
         message = "Src vertex group is not valid."
 
-  if get_dst and message == "":
+  if get_dst and message is None:
     if not dst_is_weight:
       if settings.dst_vcol_id in mesh.vertex_colors:
         rv['dst_vcol'] = mesh.vertex_colors[settings.dst_vcol_id]
-        rv['dst_vcol_idx'] = channel_id_to_idx(settings.dst_channel_id)
+        rv['dst_channel_idx'] = channel_id_to_idx(settings.dst_channel_id)
       else:
         message = "Dst vertex color layer is not valid."
     else:
       dst_vgroup_idx = -1
       for group in obj.vertex_groups:
         if group.name == settings.dst_vcol_id:
-          rv['dst_vgroup_idx'] = group.index
+          dst_vgroup_idx = group.index
+          rv['dst_vgroup_idx'] = dst_vgroup_idx
           break
       if dst_vgroup_idx < 0:
         message = "Dst vertex group is not valid."
@@ -268,34 +270,18 @@ class VertexColorMaster_ColorToWeights(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
-    settings = context.scene.vertex_color_master_settings
+    vi = get_validated_input(context, get_src=True, get_dst=True, dst_is_weight=True)
+
+    if vi['error'] is not None:
+      self.report({'ERROR'}, vi['error'])
+      return {'FINISHED'}
+
     obj = context.active_object
-    mesh = obj.data
-
-    # validate input
-    if mesh.vertex_colors is None:
-      return {'FINISHED'}
-    src_vcol_id = settings.src_vcol_id
-    if src_vcol_id not in mesh.vertex_colors:
-      return {'FINISHED'}
-    src_vcol = mesh.vertex_colors[src_vcol_id]
-    src_channel_idx = channel_id_to_idx(settings.src_channel_id)
-
-    # get correct vertex group index
-    dst_group_id = settings.dst_vcol_id
-    dst_vgroup_idx = -1
-    for group in obj.vertex_groups:
-      if group.name == dst_group_id:
-        dst_vgroup_idx = group.index
-        break
-    if dst_vgroup_idx < 0:
-      return {'FINISHED'}
-
-    color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx)
+    color_to_weights(obj, vi['src_vcol'], vi['src_channel_idx'], vi['dst_vgroup_idx'])
 
     return {'FINISHED'}
 
@@ -308,34 +294,18 @@ class VertexColorMaster_WeightsToColor(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
-    settings = context.scene.vertex_color_master_settings
-    obj = context.active_object
-    mesh = obj.data
+    vi = get_validated_input(context, get_src=True, get_dst=True, src_is_weight=True)
 
-    # validate input
-    if mesh.vertex_colors is None:
-      return {'FINISHED'}
-    dst_vcol_id = settings.dst_vcol_id
-    if dst_vcol_id not in mesh.vertex_colors:
-      return {'FINISHED'}
-    dst_vcol = mesh.vertex_colors[dst_vcol_id]
-    dst_channel_idx = channel_id_to_idx(settings.dst_channel_id)
-
-    # get correct vertex group index
-    src_group_id = settings.src_vcol_id
-    src_vgroup_idx = -1
-    for group in obj.vertex_groups:
-      if group.name == src_group_id:
-        src_vgroup_idx = group.index
-        break
-    if src_vgroup_idx < 0:
+    if vi['error'] is not None:
+      self.report({'ERROR'}, vi['error'])
       return {'FINISHED'}
 
-    weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx)
+    mesh = context.active_object.data
+    weights_to_color(mesh, vi['src_vgroup_idx'], vi['dst_vcol'], vi['dst_channel_idx'])
 
     return {'FINISHED'}
 
@@ -354,26 +324,18 @@ class VertexColorMaster_RgbToGrayscale(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
-    settings = context.scene.vertex_color_master_settings
+    vi = get_validated_input(context, get_src=True, get_dst=True)
+
+    if vi['error'] is not None:
+      self.report({'ERROR'}, vi['error'])
+      return {'FINISHED'}
+
     mesh = context.active_object.data
-
-    # validate input
-    if mesh.vertex_colors is None:
-      return {'FINISHED'}
-
-    src_vcol = None if settings.src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[settings.src_vcol_id]
-    dst_vcol = None if settings.dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[settings.dst_vcol_id]
-
-    if src_vcol is None or dst_vcol is None:
-      return {'FINISHED'}
-
-    dst_channel_idx = channel_id_to_idx(settings.dst_channel_id)
-
-    convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, self.all_channels)
+    convert_rgb_to_luminosity(mesh, vi['src_vcol'], vi['dst_vcol'], vi['dst_channel_idx'], self.all_channels)
 
     return {'FINISHED'}
 
@@ -398,27 +360,18 @@ class VertexColorMaster_CopyChannel(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
-    settings = context.scene.vertex_color_master_settings
+    vi = get_validated_input(context, get_src=True, get_dst=True)
+
+    if vi['error'] is not None:
+      self.report({'ERROR'}, vi['error'])
+      return {'FINISHED'}
+
     mesh = context.active_object.data
-
-    # validate input
-    if mesh.vertex_colors is None:
-      return {'FINISHED'}
-
-    src_vcol = None if settings.src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[settings.src_vcol_id]
-    dst_vcol = None if settings.dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[settings.dst_vcol_id]
-
-    if src_vcol is None or dst_vcol is None:
-      return {'FINISHED'}
-
-    src_channel_idx = channel_id_to_idx(settings.src_channel_id)
-    dst_channel_idx = channel_id_to_idx(settings.dst_channel_id)
-
-    copy_channel(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, self.swap_channels, self.all_channels)
+    copy_channel(mesh, vi['src_vcol'], vi['dst_vcol'], vi['src_channel_idx'], vi['dst_channel_idx'], self.swap_channels, self.all_channels)
 
     return {'FINISHED'}
 
@@ -444,8 +397,8 @@ class VertexColorMaster_BlendChannels(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def invoke(self, context, event):
     settings = context.scene.vertex_color_master_settings
@@ -453,24 +406,16 @@ class VertexColorMaster_BlendChannels(bpy.types.Operator):
     return self.execute(context)
 
   def execute(self, context):
-    settings = context.scene.vertex_color_master_settings
+    vi = get_validated_input(context, get_src=True, get_dst=True)
+
+    if vi['error'] is not None:
+      self.report({'ERROR'}, vi['error'])
+      return {'FINISHED'}
+
+
     mesh = context.active_object.data
-
-    # validate input
-    if mesh.vertex_colors is None:
-      return {'FINISHED'}
-
-    src_vcol = None if settings.src_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[settings.src_vcol_id]
-    dst_vcol = None if settings.dst_vcol_id not in mesh.vertex_colors else mesh.vertex_colors[settings.dst_vcol_id]
-
-    if src_vcol is None or dst_vcol is None:
-      return {'FINISHED'}
-
-    src_channel_idx = channel_id_to_idx(settings.src_channel_id)
-    dst_channel_idx = channel_id_to_idx(settings.dst_channel_id)
     result_channel_idx = channel_id_to_idx(self.result_channel_id)
-
-    blend_channels(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, result_channel_idx, self.blend_mode)
+    blend_channels(mesh, vi['src_vcol'], vi['dst_vcol'], vi['src_channel_idx'], vi['dst_channel_idx'], result_channel_idx, self.blend_mode)
 
     return {'FINISHED'}
   
@@ -511,11 +456,10 @@ class VertexColorMaster_Fill(bpy.types.Operator):
     if prefs.alpha_support and self.clear_inactive:
       col.prop(self, 'clear_alpha')
 
-
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
     prefs = context.user_preferences.addons[__name__].preferences
@@ -567,8 +511,8 @@ class VertexColorMaster_Invert(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
     active_channels = context.scene.vertex_color_master_settings.active_channels
@@ -613,8 +557,8 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
 
   @classmethod
   def poll(cls, context):
-    active_obj = context.active_object
-    return active_obj != None and active_obj.type == 'MESH'
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
 
   def execute(self, context):
     active_channels = context.scene.vertex_color_master_settings.active_channels
@@ -658,6 +602,11 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
     items=brush_blend_mode_items
     )
 
+  @classmethod
+  def poll(cls, context):
+    obj = context.active_object
+    return bpy.context.object.mode == 'VERTEX_PAINT' and obj != None and obj.type == 'MESH'
+
   def execute(self, context):
     brush = bpy.data.brushes['Draw']
     brush.vertex_tool = self.blend_mode
@@ -679,9 +628,9 @@ class VertexColorMasterAddonPreferences(bpy.types.AddonPreferences):
     )
 
   # use_own_tab = BoolProperty(
-  #   name="Use own tab",
-  #   defaault=False,
-  #   description="Put addon panel under its own tab, instead of under Tools"
+  #   name="Use Own Tab",
+  #   default=False,
+  #   description="Put add-on panel under its own tab, instead of under Tools"
   #   )
 
   def draw(self, context):
@@ -792,7 +741,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
 
 class VertexColorMaster(bpy.types.Panel):
-  """COMMENT"""
+  """Add-on for working with vertex color data"""
   bl_space_type = 'VIEW_3D'
   bl_region_type = 'TOOLS'
   bl_label = 'Vertex Color Master'
