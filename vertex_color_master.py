@@ -208,6 +208,53 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
   mesh.update()
 
 
+def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_weight=False):
+  settings = context.scene.vertex_color_master_settings
+  obj = context.active_object
+  mesh = obj.data
+
+  rv = {}
+
+  message = ""
+
+  if not (src_is_weight and dst_is_weight) and mesh.vertex_colors is None:
+    message = "Object has no vertex colors"
+
+  if get_src and message == "":
+    if not src_is_weight:
+      if settings.src_vcol_id in mesh.vertex_colors:
+        rv['src_vcol'] = mesh.vertex_colors[settings.src_vcol_id]
+        rv['src_vcol_idx'] = channel_id_to_idx(settings.src_channel_id)
+      else:
+        message = "Src vertex color layer is not valid."
+    else:
+      src_vgroup_idx = -1
+      for group in obj.vertex_groups:
+        if group.name == settings.src_vcol_id:
+          rv['src_vgroup_idx'] = group.index
+          break
+      if src_vgroup_idx < 0:
+        message = "Src vertex group is not valid."
+
+  if get_dst and message == "":
+    if not dst_is_weight:
+      if settings.dst_vcol_id in mesh.vertex_colors:
+        rv['dst_vcol'] = mesh.vertex_colors[settings.dst_vcol_id]
+        rv['dst_vcol_idx'] = channel_id_to_idx(settings.dst_channel_id)
+      else:
+        message = "Dst vertex color layer is not valid."
+    else:
+      dst_vgroup_idx = -1
+      for group in obj.vertex_groups:
+        if group.name == settings.dst_vcol_id:
+          rv['dst_vgroup_idx'] = group.index
+          break
+      if dst_vgroup_idx < 0:
+        message = "Dst vertex group is not valid."
+
+  rv['error'] = message
+  return rv
+
 
 ###############################################################################
 ####  MAIN OPERATOR CLASSES
