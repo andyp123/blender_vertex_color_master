@@ -20,10 +20,13 @@
 # + operate on selection only (VERT/EDGE, FACE)
 # + quick channel preview / view as greyscale / isolate
 # + add more operator options to REDO panel
-# + implement support for alpha (see recent vertex painting commits and try with build)
+# + improve alpha support:
+#  - auto detect instead of enabled in prefs
+#  - enable RGB channels by default
 
 import bpy
 from bpy.props import *
+from mathutils import Color
 
 bl_info = {
   "name": "Vertex Color Master",
@@ -40,7 +43,16 @@ green_id = 'G'
 blue_id = 'B'
 alpha_id = 'A'
 
-channel_items = ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""))#, (alpha_id, "A", ""))
+# channel_items = ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""))
+# channel_items_alpha = ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""), (alpha_id, "A", ""))
+
+def channel_items(self, context):
+  prefs = context.user_preferences.addons[__name__].preferences
+
+  if prefs.alpha_support:
+    return ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""), (alpha_id, "A", ""))
+  
+  return ((red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", ""))
 
 brush_blend_mode_items = (('MIX', "Mix", ""),
   ('ADD', "Add", ""),
@@ -435,12 +447,30 @@ class VertexColorMaster_Fill(bpy.types.Operator):
     description = "Clear inactive channel(s)"
     )
 
+  clear_alpha = bpy.props.BoolProperty(
+    name = "clear alpha",
+    default = False,
+    description = "Clear the alpha channel, even if not active and clear inactive is enabled"
+    )
+
+  def draw(self, context):
+    prefs = context.user_preferences.addons[__name__].preferences
+    layout = self.layout
+
+    col = layout.column()
+    col.prop(self, 'value')
+    col.prop(self, 'clear_inactive')
+    if prefs.alpha_support and self.clear_inactive:
+      col.prop(self, 'clear_alpha')
+
+
   @classmethod
   def poll(cls, context):
     active_obj = context.active_object
     return active_obj != None and active_obj.type == 'MESH'
 
   def execute(self, context):
+    prefs = context.user_preferences.addons[__name__].preferences
     active_channels = context.scene.vertex_color_master_settings.active_channels
     mesh = context.active_object.data
 
@@ -454,13 +484,27 @@ class VertexColorMaster_Fill(bpy.types.Operator):
     gmul = 1.0 if not self.clear_inactive or green_id in active_channels else 0.0
     bmul = 1.0 if not self.clear_inactive or blue_id in active_channels else 0.0
 
-    for loop_index, loop in enumerate(mesh.loops):
-      color = vcol_layer.data[loop_index].color
-      vcol_layer.data[loop_index].color = [
-        value if red_id in active_channels else color[0] * rmul,
-        value if green_id in active_channels else color[1] * gmul,
-        value if blue_id in active_channels else color[2] * bmul
-        ]
+    # TODO: would be best to detect alpha support automatically, like this, instead of using addon prefs
+    alpha_enabled = prefs.alpha_support and len(vcol_layer.data[0].color) == 4
+
+    if alpha_enabled:
+      amul = 1.0 if not self.clear_inactive or not self.clear_alpha or alpha_id in active_channels else 0.0
+      for loop_index, loop in enumerate(mesh.loops):
+        color = vcol_layer.data[loop_index].color
+        vcol_layer.data[loop_index].color = [
+          value if red_id in active_channels else color[0] * rmul,
+          value if green_id in active_channels else color[1] * gmul,
+          value if blue_id in active_channels else color[2] * bmul,
+          value if alpha_id in active_channels else color[3] * amul
+          ]
+    else:
+      for loop_index, loop in enumerate(mesh.loops):
+        color = vcol_layer.data[loop_index].color
+        vcol_layer.data[loop_index].color = [
+          value if red_id in active_channels else color[0] * rmul,
+          value if green_id in active_channels else color[1] * gmul,
+          value if blue_id in active_channels else color[2] * bmul
+          ]
 
     mesh.vertex_colors.active = vcol_layer
     mesh.update()
@@ -495,6 +539,8 @@ class VertexColorMaster_Invert(bpy.types.Operator):
         color[1] = 1 - color[1]
       if blue_id in active_channels:
         color[2] = 1 - color[2]
+      if alpha_id in active_channels:
+        color[3] = 1 - color[3]
       vcol_layer.data[loop_index].color = color
 
     mesh.vertex_colors.active = vcol_layer
@@ -542,6 +588,8 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
         color[1] = posterize(color[1], steps)
       if blue_id in active_channels:
         color[2] = posterize(color[2], steps)
+      if alpha_id in active_channels:
+        color[3] = posterize(color[3], steps)
       vcol_layer.data[loop_index].color = color
 
     mesh.vertex_colors.active = vcol_layer
@@ -570,11 +618,35 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
 
 
 ###############################################################################
-####  MAIN CLASS, UI AND REGISTRATION
+####  MAIN CLASS, UI, SETTINGS, PREFS AND REGISTRATION
 ###############################################################################
+
+class VertexColorMasterAddonPreferences(bpy.types.AddonPreferences):
+  bl_idname = __name__
+
+  alpha_support = BoolProperty(
+    name="Alpha Support",
+    default=False,
+    description="Enable support for vertex color alpha, available in some builds of Blender",
+    )
+
+  # use_own_tab = BoolProperty(
+  #   name="Use own tab",
+  #   defaault=False,
+  #   description="Put addon panel under its own tab, instead of under Tools"
+  #   )
+
+  def draw(self, context):
+    layout = self.layout
+    layout.prop(self, 'alpha_support')
+
+
 class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
-  def update_rgba(self, context):
+  def update_active_channels(self, context):
+    if not self.match_brush_to_active_channels:
+      return None
+
     active_channels = self.active_channels
     brush_value = self.brush_value
 
@@ -596,9 +668,28 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
     options={'ENUM_FLAG'},
     items=channel_items,
     description="Which channels to enable",
-    default={'R', 'G', 'B'},
-    update=update_rgba,
+    # default={'R', 'G', 'B'},
+    update=update_active_channels,
     )
+
+  match_brush_to_active_channels = BoolProperty(
+    name="Match Active Channels",
+    default=True,
+    description="Change the brush color to match the active channels",
+    update=update_active_channels
+    )
+
+  def update_brush_value(self, context):
+    if self.match_brush_to_active_channels:
+      return update_active_channels(self, context)
+
+    brush = bpy.data.brushes['Draw']
+
+    color = Color(brush.color)
+    color.v = self.brush_value
+    brush.color = color
+
+    return None
 
   brush_value = FloatProperty(
     name="Brush Value",
@@ -606,7 +697,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
     default=1.0,
     min=0.0,
     max=1.0,
-    update=update_rgba,
+    update=update_brush_value,
     )
 
   def vcol_layer_items(self, context):
@@ -627,6 +718,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
   src_channel_id = EnumProperty(
     name="Source Channel",
     items=channel_items,
+    # default=red_id,
     description="Source color channel"
     )
 
@@ -639,6 +731,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
   dst_channel_id = EnumProperty(
     name="Destination Channel",
     items=channel_items,
+    # default=green_id,
     description="Destination color channel"
     )
 
@@ -647,6 +740,8 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
     items=channel_blend_mode_items,
     description="Channel blending operation",
     )
+
+
 
 class VertexColorMaster(bpy.types.Panel):
   """COMMENT"""
@@ -671,6 +766,8 @@ class VertexColorMaster(bpy.types.Panel):
     row.prop(settings, 'brush_value', 'Val', slider=True)
 
     col = layout.column(align=True)
+    row = col.row()
+    row.prop(settings, 'match_brush_to_active_channels')
     row = col.row(align=True)
     blend_mode_name = ''
     for mode in brush_blend_mode_items:
@@ -684,9 +781,9 @@ class VertexColorMaster(bpy.types.Panel):
     row = col.row(align=True)
     row.operator('vertexcolormaster.edit_brush_settings', "Multiply").blend_mode = 'MUL'
     row.operator('vertexcolormaster.edit_brush_settings', "Blur").blend_mode = 'BLUR'
-    row = col.row(align=True)
-    row.operator('vertexcolormaster.edit_brush_settings', "Lighten").blend_mode = 'LIGHTEN'
-    row.operator('vertexcolormaster.edit_brush_settings', "Darken").blend_mode = 'DARKEN'
+    # row = col.row(align=True)
+    # row.operator('vertexcolormaster.edit_brush_settings', "Lighten").blend_mode = 'LIGHTEN'
+    # row.operator('vertexcolormaster.edit_brush_settings', "Darken").blend_mode = 'DARKEN'
 
     layout.separator()
 
@@ -763,6 +860,10 @@ class VertexColorMaster(bpy.types.Panel):
 ###############################################################################
 
 def register():
+  bpy.utils.register_class(VertexColorMasterAddonPreferences)
+  bpy.utils.register_class(VertexColorMasterProperties)
+  bpy.types.Scene.vertex_color_master_settings = PointerProperty(type=VertexColorMasterProperties)
+
   bpy.utils.register_class(VertexColorMaster)
   bpy.utils.register_class(VertexColorMaster_Fill)
   bpy.utils.register_class(VertexColorMaster_Invert)
@@ -774,11 +875,12 @@ def register():
   bpy.utils.register_class(VertexColorMaster_WeightsToColor)
   bpy.utils.register_class(VertexColorMaster_ColorToWeights)
 
-  bpy.utils.register_class(VertexColorMasterProperties)
-  bpy.types.Scene.vertex_color_master_settings = PointerProperty(type=VertexColorMasterProperties)
-
 
 def unregister():
+  bpy.utils.unregister_class(VertexColorMasterAddonPreferences)
+  bpy.utils.unregister_class(VertexColorMasterProperties)
+  del bpy.types.Scene.vertex_color_master_settings
+
   bpy.utils.unregister_class(VertexColorMaster)
   bpy.utils.unregister_class(VertexColorMaster_Fill)
   bpy.utils.unregister_class(VertexColorMaster_Invert)
@@ -790,8 +892,6 @@ def unregister():
   bpy.utils.unregister_class(VertexColorMaster_WeightsToColor)
   bpy.utils.unregister_class(VertexColorMaster_ColorToWeights)
 
-  bpy.utils.unregister_class(VertexColorMasterProperties)
-  del bpy.types.Scene.vertex_color_master_settings
 
 
 # allows running addon from text editor
