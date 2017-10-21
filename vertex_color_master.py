@@ -23,6 +23,7 @@
 # + improve alpha support:
 #  - auto detect instead of enabled in prefs
 #  - enable RGB channels by default
+# + Fix inconsistent capitalization
 
 import bpy
 from bpy.props import *
@@ -779,11 +780,11 @@ class VertexColorMaster(bpy.types.Panel):
     row.operator('vertexcolormaster.edit_brush_settings', "Add").blend_mode = 'ADD'
     row.operator('vertexcolormaster.edit_brush_settings', "Subtract").blend_mode = 'SUB'
     row = col.row(align=True)
+    row.operator('vertexcolormaster.edit_brush_settings', "Lighten").blend_mode = 'LIGHTEN'
+    row.operator('vertexcolormaster.edit_brush_settings', "Darken").blend_mode = 'DARKEN'
+    row = col.row(align=True)
     row.operator('vertexcolormaster.edit_brush_settings', "Multiply").blend_mode = 'MUL'
     row.operator('vertexcolormaster.edit_brush_settings', "Blur").blend_mode = 'BLUR'
-    # row = col.row(align=True)
-    # row.operator('vertexcolormaster.edit_brush_settings', "Lighten").blend_mode = 'LIGHTEN'
-    # row.operator('vertexcolormaster.edit_brush_settings', "Darken").blend_mode = 'DARKEN'
 
     layout.separator()
 
@@ -797,6 +798,7 @@ class VertexColorMaster(bpy.types.Panel):
     col = layout.column(align=True)
     row = col.row(align = True)
     row.operator('vertexcolormaster.fill', 'Fill').value = 1.0
+    # row.operator('vertexcolormaster.fill', "{0:.2f}".format(settings.brush_value)).value = settings.brush_value
     row.operator('vertexcolormaster.fill', 'Clear').value = 0.0
     row = col.row(align = True)
     row.operator('vertexcolormaster.invert', 'Invert')
