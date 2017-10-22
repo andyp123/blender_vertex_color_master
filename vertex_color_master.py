@@ -208,6 +208,41 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
     mesh.update()
 
 
+def fill_selected(mesh, vcol, color, active_channels, mask='NONE'):
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = color[0]
+                if green_id in active_channels:
+                    c[1] = color[1]
+                if blue_id in active_channels:
+                    c[2] = color[2]
+                if alpha_id in active_channels:
+                    c[3] = color[3]
+                vcol.data[loop_index].color = c
+    else:
+        vertex_mask = True if mask == 'VERTEX' else False
+        verts = mesh.vertices
+
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = color[0]
+                if green_id in active_channels:
+                    c[1] = color[1]
+                if blue_id in active_channels:
+                    c[2] = color[2]
+                if alpha_id in active_channels:
+                    c[3] = color[3]
+                vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
 def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_weight=False):
     settings = context.scene.vertex_color_master_settings
     obj = context.active_object
@@ -433,35 +468,13 @@ class VertexColorMaster_Fill(bpy.types.Operator):
     bl_label = 'VCM Fill'
     bl_options = {'REGISTER', 'UNDO'}
 
-    value = bpy.props.FloatProperty(
+    value = FloatProperty(
         name="Value",
+        description="Value to fill active channel(s) with.",
         default=1.0,
         min=0.0,
-        max=1.0,
-        description="Value to fill channel(s) with."
+        max=1.0
     )
-
-    clear_inactive = bpy.props.BoolProperty(
-        name="Clear Inactive",
-        default=False,
-        description="Clear inactive channel(s)."
-    )
-
-    clear_alpha = bpy.props.BoolProperty(
-        name="Clear Alpha",
-        default=False,
-        description="Clear the alpha channel, even if not active and Clear Inactive is enabled."
-    )
-
-    def draw(self, context):
-        prefs = context.user_preferences.addons[__name__].preferences
-        layout = self.layout
-
-        col = layout.column()
-        col.prop(self, 'value', slider=True)
-        col.prop(self, 'clear_inactive')
-        if prefs.alpha_support and self.clear_inactive:
-            col.prop(self, 'clear_alpha')
 
     @classmethod
     def poll(cls, context):
@@ -469,44 +482,15 @@ class VertexColorMaster_Fill(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        prefs = context.user_preferences.addons[__name__].preferences
-        active_channels = context.scene.vertex_color_master_settings.active_channels
+        settings = context.scene.vertex_color_master_settings
+
         mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        brush_color = [self.value] * 4
+        active_channels = settings.active_channels
+        mask_mode = settings.mask_mode
 
-        if mesh.vertex_colors:
-            vcol_layer = mesh.vertex_colors.active
-        else:
-            vcol_layer = mesh.vertex_colors.new()
-
-        value = self.value
-        rmul = 1.0 if not self.clear_inactive or red_id in active_channels else 0.0
-        gmul = 1.0 if not self.clear_inactive or green_id in active_channels else 0.0
-        bmul = 1.0 if not self.clear_inactive or blue_id in active_channels else 0.0
-
-        # TODO: would be best to detect alpha support automatically, like this, instead of using addon prefs
-        alpha_enabled = prefs.alpha_support and len(vcol_layer.data[0].color) == 4
-
-        if alpha_enabled:
-            amul = 1.0 if not self.clear_inactive or not self.clear_alpha or alpha_id in active_channels else 0.0
-            for loop_index, loop in enumerate(mesh.loops):
-                color = vcol_layer.data[loop_index].color
-                vcol_layer.data[loop_index].color = [
-                    value if red_id in active_channels else color[0] * rmul,
-                    value if green_id in active_channels else color[1] * gmul,
-                    value if blue_id in active_channels else color[2] * bmul,
-                    value if alpha_id in active_channels else color[3] * amul
-                ]
-        else:
-            for loop_index, loop in enumerate(mesh.loops):
-                color = vcol_layer.data[loop_index].color
-                vcol_layer.data[loop_index].color = [
-                    value if red_id in active_channels else color[0] * rmul,
-                    value if green_id in active_channels else color[1] * gmul,
-                    value if blue_id in active_channels else color[2] * bmul
-                ]
-
-        mesh.vertex_colors.active = vcol_layer
-        mesh.update()
+        fill_selected(mesh, vcol, brush_color, active_channels, mask_mode)
 
         return {'FINISHED'}
 
@@ -523,25 +507,31 @@ class VertexColorMaster_Invert(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        active_channels = context.scene.vertex_color_master_settings.active_channels
+        settings = context.scene.vertex_color_master_settings
+        active_channels = settings.active_channels
         mesh = context.active_object.data
+
 
         if mesh.vertex_colors:
             vcol_layer = mesh.vertex_colors.active
         else:
             vcol_layer = mesh.vertex_colors.new()
 
+        verts = mesh.vertices
+        selection_mask = settings.selection_mask
+
         for loop_index, loop in enumerate(mesh.loops):
-            color = vcol_layer.data[loop_index].color
-            if red_id in active_channels:
-                color[0] = 1 - color[0]
-            if green_id in active_channels:
-                color[1] = 1 - color[1]
-            if blue_id in active_channels:
-                color[2] = 1 - color[2]
-            if alpha_id in active_channels:
-                color[3] = 1 - color[3]
-            vcol_layer.data[loop_index].color = color
+            if not selection_mask or verts[loop.vertex_index].select:
+                color = vcol_layer.data[loop_index].color
+                if red_id in active_channels:
+                    color[0] = 1 - color[0]
+                if green_id in active_channels:
+                    color[1] = 1 - color[1]
+                if blue_id in active_channels:
+                    color[2] = 1 - color[2]
+                if alpha_id in active_channels:
+                    color[3] = 1 - color[3]
+                vcol_layer.data[loop_index].color = color
 
         mesh.vertex_colors.active = vcol_layer
         mesh.update()
@@ -569,7 +559,8 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        active_channels = context.scene.vertex_color_master_settings.active_channels
+        settings = context.scene.vertex_color_master_settings
+        active_channels = settings.active_channels
         mesh = context.active_object.data
 
         if mesh.vertex_colors:
@@ -580,17 +571,21 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
         # using posterize(), 2 steps -> 3 tones, but best to have 2 steps -> 2 tones
         steps = self.steps - 1
 
+        verts = mesh.vertices
+        selection_mask = settings.selection_mask
+
         for loop_index, loop in enumerate(mesh.loops):
-            color = vcol_layer.data[loop_index].color
-            if red_id in active_channels:
-                color[0] = posterize(color[0], steps)
-            if green_id in active_channels:
-                color[1] = posterize(color[1], steps)
-            if blue_id in active_channels:
-                color[2] = posterize(color[2], steps)
-            if alpha_id in active_channels:
-                color[3] = posterize(color[3], steps)
-            vcol_layer.data[loop_index].color = color
+            if not selection_mask or verts[loop.vertex_index].select:
+                color = vcol_layer.data[loop_index].color
+                if red_id in active_channels:
+                    color[0] = posterize(color[0], steps)
+                if green_id in active_channels:
+                    color[1] = posterize(color[1], steps)
+                if blue_id in active_channels:
+                    color[2] = posterize(color[2], steps)
+                if alpha_id in active_channels:
+                    color[3] = posterize(color[3], steps)
+                vcol_layer.data[loop_index].color = color
 
         mesh.vertex_colors.active = vcol_layer
         mesh.update()
@@ -635,12 +630,6 @@ class VertexColorMasterAddonPreferences(bpy.types.AddonPreferences):
         default=False,
         description="Enable support for vertex color alpha, available in some builds of Blender",
     )
-
-    # use_own_tab = BoolProperty(
-    #   name="Use Own Tab",
-    #   default=False,
-    #   description="Put add-on panel under its own tab, instead of under Tools"
-    #   )
 
     def draw(self, context):
         layout = self.layout
@@ -703,6 +692,18 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         min=0.0,
         max=1.0,
         update=update_brush_value,
+    )
+
+    selection_mask = BoolProperty(
+        name="Selection Mask",
+        description="Fill only the selected vertices.",
+        default=False
+    )
+
+    mask_mode = EnumProperty(
+        name="Mask Mode",
+        items=(('NONE', "None", ''), ('FACE', "Face", ''), ('VERTEX', "Vertex", '')),
+        description="Mask based on currently selected mesh elements."
     )
 
     def vcol_layer_items(self, context):
@@ -770,10 +771,10 @@ class VertexColorMaster(bpy.types.Panel):
         row = col.row(align=True)
         row.prop(brush, 'color', text="")
         row.prop(settings, 'brush_value', 'Val', slider=True)
+        row = col.row(align=True)
+        row.prop(settings, 'match_brush_to_active_channels')
 
         col = layout.column(align=True)
-        row = col.row()
-        row.prop(settings, 'match_brush_to_active_channels')
         row = col.row(align=True)
         blend_mode_name = ''
         for mode in brush_blend_mode_items:
@@ -799,6 +800,10 @@ class VertexColorMaster(bpy.types.Panel):
         row.label('Active Channels')
         row = col.row()
         row.prop(settings, 'active_channels', expand=True)
+        row = col.row()
+        row.label('Selection Mask Mode')
+        row = col.row()
+        row.prop(settings, 'mask_mode', expand=True)
 
         col = layout.column(align=True)
         row = col.row(align=True)
