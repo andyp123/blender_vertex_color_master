@@ -99,7 +99,6 @@ def rgb_to_luminosity(color):
 
 
 def convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, dst_all_channels=False):
-    # convert color to luminosity
     if dst_all_channels:
         for loop_index, loop in enumerate(mesh.loops):
             luminosity = rgb_to_luminosity(src_vcol.data[loop_index].color)
@@ -189,7 +188,7 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
     mesh = obj.data
 
     # build 2d array containing sum of color channel value, number of values
-    # use this to create an average when setting weights
+    # used to calculate average for vertex when setting weights
     vertex_values = [[0.0, 0] for i in range(0, len(mesh.vertices))]
 
     for loop_index, loop in enumerate(mesh.loops):
@@ -228,7 +227,7 @@ def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_w
                 rv['src_channel_idx'] = channel_id_to_idx(
                     settings.src_channel_id)
             else:
-                message = "Src vertex color layer is not valid."
+                message = "Src color layer is not valid."
         else:
             src_vgroup_idx = -1
             for group in obj.vertex_groups:
@@ -246,7 +245,7 @@ def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_w
                 rv['dst_channel_idx'] = channel_id_to_idx(
                     settings.dst_channel_id)
             else:
-                message = "Dst vertex color layer is not valid."
+                message = "Dst color layer is not valid."
         else:
             dst_vgroup_idx = -1
             for group in obj.vertex_groups:
