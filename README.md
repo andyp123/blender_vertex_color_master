@@ -30,14 +30,23 @@ The active channels section allows the user to enable or disable channels that t
 
 As channels are activated and deactivated, the brush color will update to match them. If the Add or Subtract brush blending modes are set, this enables the user to paint only on active channels quite easily.
 
+### Selection Mask Mode
+Selection mask mode sets the mask mode of the Fill, Invert and Posterize tools so they cn operate only on selected mesh elements.
+
++ __None__ - Do not use a selection mask.
+
++ __Face__ - Operate on selected faces. This will result in sharp borders around the faces being operated on.
+
++ __Vertex__ - Operate on selected vertices. This will result in soft borders around the vertices being operated on.
+
 ### Fill / Clear
 Fill sets the value of the currently active channel(s) to 1, whereas Clear will set it to 0.
 
 + __Value__ (1.0) - The value to fill the channel(s) with.
 
-+ __Clear Inactive__ (off) - Clear channels that are not activated in the Active Channels settings.
++ __Fill With Color__ (off) - Ignore active channels and fill the vertex color layer with 'Fill Color'.
 
-+ __Clear Alpha__ (off) - Even if clear inactive is enabled, if this setting is off, the alpha channel will not be cleared when using Fill. __Note:__ Only available when Alpha Support is enabled in the add-on preferences.
++ __Fill Color__ (white) - Color to use when 'Fill With Color' is enabled.
 
 ### Invert
 Inverts the value of the currently active channel(s).
