@@ -243,6 +243,76 @@ def fill_selected(mesh, vcol, color, active_channels, mask='NONE'):
     mesh.update()
 
 
+def invert_selected(mesh, vcol, active_channels, mask='NONE'):
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = 1 - c[0]
+                if green_id in active_channels:
+                    c[1] = 1 - c[1]
+                if blue_id in active_channels:
+                    c[2] = 1 - c[2]
+                if alpha_id in active_channels:
+                    c[3] = 1 - c[3]
+                vcol.data[loop_index].color = c
+    else:
+        vertex_mask = True if mask == 'VERTEX' else False
+        verts = mesh.vertices
+
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = 1 - c[0]
+                if green_id in active_channels:
+                    c[1] = 1 - c[1]
+                if blue_id in active_channels:
+                    c[2] = 1 - c[2]
+                if alpha_id in active_channels:
+                    c[3] = 1 - c[3]
+                vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
+def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = posterize(c[0], steps)
+                if green_id in active_channels:
+                    c[1] = posterize(c[1], steps)
+                if blue_id in active_channels:
+                    c[2] = posterize(c[2], steps)
+                if alpha_id in active_channels:
+                    c[2] = posterize(c[3], steps)
+                vcol.data[loop_index].color = c
+    else:
+        vertex_mask = True if mask == 'VERTEX' else False
+        verts = mesh.vertices
+
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = posterize(c[0], steps)
+                if green_id in active_channels:
+                    c[1] = posterize(c[1], steps)
+                if blue_id in active_channels:
+                    c[2] = posterize(c[2], steps)
+                if alpha_id in active_channels:
+                    c[2] = posterize(c[3], steps)
+                vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
 def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_weight=False):
     settings = context.scene.vertex_color_master_settings
     obj = context.active_object
@@ -487,10 +557,8 @@ class VertexColorMaster_Fill(bpy.types.Operator):
         mesh = context.active_object.data
         vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
         brush_color = [self.value] * 4
-        active_channels = settings.active_channels
-        mask_mode = settings.mask_mode
 
-        fill_selected(mesh, vcol, brush_color, active_channels, mask_mode)
+        fill_selected(mesh, vcol, brush_color, settings.active_channels, settings.mask_mode)
 
         return {'FINISHED'}
 
@@ -508,33 +576,11 @@ class VertexColorMaster_Invert(bpy.types.Operator):
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
-        active_channels = settings.active_channels
+
         mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
 
-
-        if mesh.vertex_colors:
-            vcol_layer = mesh.vertex_colors.active
-        else:
-            vcol_layer = mesh.vertex_colors.new()
-
-        verts = mesh.vertices
-        selection_mask = settings.selection_mask
-
-        for loop_index, loop in enumerate(mesh.loops):
-            if not selection_mask or verts[loop.vertex_index].select:
-                color = vcol_layer.data[loop_index].color
-                if red_id in active_channels:
-                    color[0] = 1 - color[0]
-                if green_id in active_channels:
-                    color[1] = 1 - color[1]
-                if blue_id in active_channels:
-                    color[2] = 1 - color[2]
-                if alpha_id in active_channels:
-                    color[3] = 1 - color[3]
-                vcol_layer.data[loop_index].color = color
-
-        mesh.vertex_colors.active = vcol_layer
-        mesh.update()
+        invert_selected(mesh, vcol, settings.active_channels, settings.mask_mode)
 
         return {'FINISHED'}
 
@@ -560,35 +606,14 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
-        active_channels = settings.active_channels
-        mesh = context.active_object.data
-
-        if mesh.vertex_colors:
-            vcol_layer = mesh.vertex_colors.active
-        else:
-            vcol_layer = mesh.vertex_colors.new()
 
         # using posterize(), 2 steps -> 3 tones, but best to have 2 steps -> 2 tones
         steps = self.steps - 1
 
-        verts = mesh.vertices
-        selection_mask = settings.selection_mask
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
 
-        for loop_index, loop in enumerate(mesh.loops):
-            if not selection_mask or verts[loop.vertex_index].select:
-                color = vcol_layer.data[loop_index].color
-                if red_id in active_channels:
-                    color[0] = posterize(color[0], steps)
-                if green_id in active_channels:
-                    color[1] = posterize(color[1], steps)
-                if blue_id in active_channels:
-                    color[2] = posterize(color[2], steps)
-                if alpha_id in active_channels:
-                    color[3] = posterize(color[3], steps)
-                vcol_layer.data[loop_index].color = color
-
-        mesh.vertex_colors.active = vcol_layer
-        mesh.update()
+        posterize_selected(mesh, vcol, steps, settings.active_channels, settings.mask_mode)
 
         return {'FINISHED'}
 
@@ -692,12 +717,6 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         min=0.0,
         max=1.0,
         update=update_brush_value,
-    )
-
-    selection_mask = BoolProperty(
-        name="Selection Mask",
-        description="Fill only the selected vertices.",
-        default=False
     )
 
     mask_mode = EnumProperty(
