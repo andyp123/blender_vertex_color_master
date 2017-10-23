@@ -546,6 +546,19 @@ class VertexColorMaster_Fill(bpy.types.Operator):
         max=1.0
     )
 
+    fill_with_color = BoolProperty(
+        name="Fill with Color",
+        description="Ignore active channels and fill with an RGB color",
+        default=False
+    )
+
+    fill_color = FloatVectorProperty(
+        name="Fill Color",
+        subtype='COLOR',
+        default=[1.0,1.0,1.0],
+        description="Color to fill vertex color data with."
+    )
+
     @classmethod
     def poll(cls, context):
         obj = context.active_object
@@ -556,11 +569,27 @@ class VertexColorMaster_Fill(bpy.types.Operator):
 
         mesh = context.active_object.data
         vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
-        brush_color = [self.value] * 4
 
-        fill_selected(mesh, vcol, brush_color, settings.active_channels, settings.mask_mode)
+        if self.fill_with_color:
+            active_channels = ['R', 'G', 'B']
+            color = self.fill_color
+            fill_selected(mesh, vcol, color, active_channels, settings.mask_mode)
+        else:
+            color = [self.value] * 4
+            fill_selected(mesh, vcol, color, settings.active_channels, settings.mask_mode)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        row = layout.row()
+        row.prop(self, 'value', slider=True)
+        row = layout.row()
+        row.prop(self, 'fill_with_color')
+        if self.fill_with_color:
+            row = layout.row()
+            row.prop(self, 'fill_color', '')
 
 
 class VertexColorMaster_Invert(bpy.types.Operator):
