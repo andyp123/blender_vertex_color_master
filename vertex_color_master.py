@@ -17,7 +17,6 @@
 
 
 # TODO:
-# + Operate on selection only (VERT/EDGE, FACE)
 # + Quick channel preview / view as greyscale / isolate
 # + Scale/change range of channel values
 # + Add more operator options to REDO panel

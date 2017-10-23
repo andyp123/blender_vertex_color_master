@@ -90,7 +90,6 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
 
 ## Planned Features
-* 'Selection Only' option for the Active Channel functions to operate just on selected elements (vertex, face).
 * Channel isolation mode for painting grayscale and saving to a channel more easily.
 * Function to scale the range of channel values.
 * Improve alpha support:
