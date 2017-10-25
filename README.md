@@ -85,7 +85,7 @@ Blends the 'Src' channel with the 'Dst' channel and puts the result in the 'Dst'
 ### Src RGB to Luminosity
 This calculates the luminosity of the vertex color data in the 'Src' layer and puts the value into each of the RGB channels.
 
-+ __All Channels__ (on) - Copy the luminosity value into each of the RGB channels. If disabled, theh luminosity value will only be copied into the 'Dst' layer's selected channel.
++ __All Channels__ (on) - Copy the luminosity value into each of the RGB channels. If disabled, the luminosity value will only be copied into the 'Dst' layer's selected channel.
 
 ### Src to Dst RGB
 Copy the value of the 'Src' channel into all channels of the 'Dst' layer.
@@ -97,7 +97,6 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
 
 ## Planned Features
-* Channel isolation mode for painting grayscale and saving to a channel more easily.
 * Function to scale the range of channel values.
 * Improve alpha support:
   - Auto detect support instead of enabling it in preferences.
