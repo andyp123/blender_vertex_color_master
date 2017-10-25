@@ -43,6 +43,8 @@ green_id = 'G'
 blue_id = 'B'
 alpha_id = 'A'
 
+valid_channel_ids = 'RGBA'
+
 
 def channel_items(self, context):
     prefs = context.user_preferences.addons[__name__].preferences
@@ -70,10 +72,12 @@ channel_blend_mode_items = (('ADD', "Add", ""),
                             ('DARKEN', "Darken", ""),
                             ('MIX', "Mix", ""))
 
+ # VCM-ISO_<CHANNEL_ID>_<VCOL_ID> ex. VCM-ISO_R_Col
+isolate_mode_name_prefix = 'VCM-ISO'
+
 ###############################################################################
 # HELPER FUNCTIONS
 ###############################################################################
-
 
 def posterize(value, steps):
     return round(value * steps) / steps
@@ -90,6 +94,20 @@ def channel_id_to_idx(id):
         return 3
     # default to red
     return 0
+
+
+def get_isolated_channel_ids(vcol):
+    vcol_id = vcol.name
+    prefix = isolate_mode_name_prefix
+    prefix_len = len(prefix)
+
+    if vcol_id.startswith(prefix) and len(vcol_id) > prefix_len + 3:
+        iso_vcol_id = vcol_id[prefix_len + 3:] # get vcol id from end of string
+        iso_channel_id = vcol_id[prefix_len + 1] # get channel id
+        if iso_channel_id in valid_channel_ids:
+            return [iso_vcol_id, iso_channel_id]
+
+    return None
 
 
 def rgb_to_luminosity(color):
@@ -671,6 +689,88 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class VertexColorMaster_IsolateChannel(bpy.types.Operator):
+    """Isolate a specific channel to paint in grayscale."""
+    bl_idname = 'vertexcolormaster.isolate_channel'
+    bl_label = 'VCM Isolate Channel'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    src_channel_id = EnumProperty(
+        name="Source Channel",
+        items=channel_items,
+        description="Source (Src) color channel."
+    )
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        obj = context.active_object
+        mesh = obj.data
+
+        if mesh.vertex_colors is None:
+            self.report({'ERROR'}, "Mesh has no vertex color layer to isolate.")
+            return {'FINISHED'}
+
+        # get the vcol and channel to isolate
+        # create empty vcol using name template
+        vcol = mesh.vertex_colors.active
+        iso_vcol_id = "{0}_{1}_{2}".format(isolate_mode_name_prefix, self.src_channel_id, vcol.name)
+        if iso_vcol_id in mesh.vertex_colors:
+            error = "{0} Channel has already been isolated to {1}. Restore or Discard before isolating again.".format(self.src_channel_id, iso_vcol_id)
+            self.report({'ERROR'}, error)
+            return {'FINISHED'}
+
+        iso_vcol = mesh.vertex_colors.new()
+        iso_vcol.name = iso_vcol_id
+        channel_idx = channel_id_to_idx(self.src_channel_id)
+
+        copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True)
+        mesh.vertex_colors.active = iso_vcol
+        brush = bpy.data.brushes['Draw'].color.s = 0.0
+
+        return {'FINISHED'}
+
+
+class VertexColorMaster_RestoreIsolatedChannel(bpy.types.Operator):
+    """Restore and isolated channel back to the vertex color layer it came from"""
+    bl_idname = 'vertexcolormaster.restore_isolated'
+    bl_label = "VCM Restore Isolated Channel"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        if obj is not None and obj.type == 'MESH' and obj.data.vertex_colors is not None:
+            vcol = obj.data.vertex_colors.active
+            # operator will not work if the active vcol name doesn't match the right template
+            vcol_info = get_isolated_channel_ids(vcol)
+            return vcol_info is not None
+
+    def execute(self, context):
+        mesh = context.active_object.data
+
+        iso_vcol = mesh.vertex_colors.active
+        vcol_info = get_isolated_channel_ids(iso_vcol)
+
+        vcol = mesh.vertex_colors[vcol_info[0]]
+        channel_idx = channel_id_to_idx(vcol_info[1])
+
+        if vcol is None:
+            error = "Mesh has no vertex color layer named '{0}'. Was it renamed or deleted?".format(vcol_info[0])
+            self.report({'ERROR'}, error)
+            return {'FINISHED'}
+
+        # assuming iso_vcol has only grayscale data, RGB are equal, so copy from R
+        copy_channel(mesh, iso_vcol, vcol, 0, channel_idx)
+        mesh.vertex_colors.active = vcol
+        mesh.vertex_colors.remove(iso_vcol)
+
+        return {'FINISHED'}
+
+
+
 ###############################################################################
 # MAIN CLASS, UI, SETTINGS, PREFS AND REGISTRATION
 ###############################################################################
@@ -810,6 +910,27 @@ class VertexColorMaster(bpy.types.Panel):
         obj = context.active_object
         settings = context.scene.vertex_color_master_settings
 
+        # use active mesh active vcol layer name to determine whether or not
+        # we should be in isolate mode or not
+        isolate = get_isolated_channel_ids(obj.data.vertex_colors.active)
+        if isolate is not None:
+            return self.draw_isolate_mode_layout(context, obj, isolate[0], isolate[1], settings)
+
+        self.draw_standard_layout(context, obj, settings)
+
+
+    def draw_isolate_mode_layout(self, context, obj, vcol_id, channel_id, settings):
+        layout = self.layout
+
+        row = layout.row()
+        row.label("ISOLATE {0}.{1}".format(vcol_id, channel_id))
+        row = layout.row()
+        row.operator('vertexcolormaster.restore_isolated', "Restore {0}.{1}".format(vcol_id, channel_id))
+        return        
+
+    def draw_standard_layout(self, context, obj, settings):
+        layout = self.layout
+
         # Brush Settings
         brush = bpy.data.brushes['Draw']
         col = layout.column(align=True)
@@ -845,8 +966,19 @@ class VertexColorMaster(bpy.types.Panel):
         col = layout.column(align=True)
         row = col.row()
         row.label('Active Channels')
-        row = col.row()
+        row = col.row(align=True)
         row.prop(settings, 'active_channels', expand=True)
+        row = col.row(align=True)
+
+        can_isolate = len(settings.active_channels) == 1
+        iso_channel_id = 'R'
+        if can_isolate:
+            for channel_id in settings.active_channels:
+                iso_channel_id = channel_id
+                break
+
+        row.operator('vertexcolormaster.isolate_channel', "Isolate Active Channel").src_channel_id = iso_channel_id
+        row.enabled = can_isolate
         row = col.row()
         row.label('Selection Mask Mode')
         row = col.row()
@@ -939,6 +1071,8 @@ def register():
     bpy.utils.register_class(VertexColorMaster_EditBrushSettings)
     bpy.utils.register_class(VertexColorMaster_WeightsToColor)
     bpy.utils.register_class(VertexColorMaster_ColorToWeights)
+    bpy.utils.register_class(VertexColorMaster_IsolateChannel)
+    bpy.utils.register_class(VertexColorMaster_RestoreIsolatedChannel)
 
 
 def unregister():
@@ -956,6 +1090,8 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_EditBrushSettings)
     bpy.utils.unregister_class(VertexColorMaster_WeightsToColor)
     bpy.utils.unregister_class(VertexColorMaster_ColorToWeights)
+    bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
+    bpy.utils.unregister_class(VertexColorMaster_RestoreIsolatedChannel)
 
 
 # allows running addon from text editor
