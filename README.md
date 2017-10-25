@@ -30,6 +30,13 @@ The active channels section allows the user to enable or disable channels that t
 
 As channels are activated and deactivated, the brush color will update to match them. If the Add or Subtract brush blending modes are set, this enables the user to paint only on active channels quite easily.
 
+![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_mode.png)
+
+### Isolate Active Channel
+When a single channel is selected, the option to isolate it and work in greyscale mode becomes available. Simply press the 'Isolate Active Channel' button and the active channel will be isolated and the Vertex Color Master UI will change to reflect this. Once in isolate channel mode, grayscale should be used instead of color when painting, and some of the usual options will not be visible on the UI. Once changes to the channel have been made, they can be applied by pressing the 'Apply Changes' button, or discarded by pressing 'Discard Changes' instead.
+
++ __Channel__ (R) - The channel that was isolated can be changed by selecting a different one.
+
 ### Selection Mask Mode
 Selection mask mode sets the mask mode of the Fill, Invert and Posterize tools so they cn operate only on selected mesh elements.
 
