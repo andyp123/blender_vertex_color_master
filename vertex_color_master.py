@@ -33,9 +33,11 @@ bl_info = {
     "author": "Andrew Palmer",
     "version": (0, 0, 4),
     "blender": (2, 79, 0),
-    "location": "View3D > Tools > Vertex Color Master",
+    "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
-    "category": "Paint"
+    "category": "Paint",
+    "wiki_url": "https://github.com/andyp123/blender_vertex_color_master",
+    "tracker_url": "https://github.com/andyp123/blender_vertex_color_master/issues"
 }
 
 red_id = 'R'
