@@ -17,12 +17,12 @@
 
 
 # TODO:
-# + Scale/change range of channel values
-# + make the isolated_channel stay in sync with vertex_colors.active
-# + Add more operator options to REDO panel
+# + Experiment with transfering data to and from UV layers
 # + Improve alpha support:
 #  - Auto detect instead of enabled in prefs
 #  - Enable RGB channels by default
+# + Add more operator options to REDO panel
+# + make the isolated_channel stay in sync with vertex_colors.active
 
 import bpy
 from bpy.props import *
@@ -31,7 +31,7 @@ from mathutils import Color
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer",
-    "version": (0, 0, 4),
+    "version": (0, 0, 5),
     "blender": (2, 79, 0),
     "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
@@ -83,6 +83,14 @@ isolate_mode_name_prefix = 'VCM-ISO'
 
 def posterize(value, steps):
     return round(value * steps) / steps
+
+
+def remap(value, min0, max0, min1, max1):
+    r0 = max0 - min0
+    if r0 == 0:
+        return min1
+    r1 = max1 - min1
+    return ((value - min0) * r1) / r0 + min1
 
 
 def channel_id_to_idx(id):
@@ -327,6 +335,41 @@ def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
                     c[2] = posterize(c[2], steps)
                 if alpha_id in active_channels:
                     c[2] = posterize(c[3], steps)
+                vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
+def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NONE'):
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = remap(c[0], min0, max0, min1, max1)
+                if green_id in active_channels:
+                    c[1] = remap(c[1], min0, max0, min1, max1)
+                if blue_id in active_channels:
+                    c[2] = remap(c[2], min0, max0, min1, max1)
+                if alpha_id in active_channels:
+                    c[2] = remap(c[3], min0, max0, min1, max1)
+                vcol.data[loop_index].color = c
+    else:
+        vertex_mask = True if mask == 'VERTEX' else False
+        verts = mesh.vertices
+
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = vcol.data[loop_index].color
+                if red_id in active_channels:
+                    c[0] = remap(c[0], min0, max0, min1, max1)
+                if green_id in active_channels:
+                    c[1] = remap(c[1], min0, max0, min1, max1)
+                if blue_id in active_channels:
+                    c[2] = remap(c[2], min0, max0, min1, max1)
+                if alpha_id in active_channels:
+                    c[2] = remap(c[3], min0, max0, min1, max1)
                 vcol.data[loop_index].color = c
 
     mesh.update()
@@ -670,6 +713,64 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class VertexColorMaster_Remap(bpy.types.Operator):
+    """Remap active vertex color channel(s)"""
+    bl_idname = 'vertexcolormaster.remap'
+    bl_label = 'VCM Remap'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    min0 = FloatProperty(
+        default=0,
+        min=0,
+        max=1
+    )
+
+    max0 = FloatProperty(
+        default=1,
+        min=0,
+        max=1
+    )
+
+    min1 = FloatProperty(
+        default=0,
+        min=0,
+        max=1
+    )
+
+    max1 = FloatProperty(
+        default=1,
+        min=0,
+        max=1
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        settings = context.scene.vertex_color_master_settings
+
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
+
+        remap_selected(mesh, vcol, self.min0, self.max0, self.min1, self.max1, active_channels, settings.mask_mode)
+
+        return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.label("Input Range")
+        layout.prop(self, 'min0', "Min", slider=True)
+        layout.prop(self, 'max0', "Max", slider=True)
+
+        layout.label("Output Range")
+        layout.prop(self, 'min1', "Min", slider=True)
+        layout.prop(self, 'max1', "Max", slider=True)
+
+
 class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
     """Set vertex paint brush settings from panel buttons"""
     bl_idname = 'vertexcolormaster.edit_brush_settings'
@@ -764,12 +865,14 @@ class VertexColorMaster_ApplyIsolatedChannel(bpy.types.Operator):
             return vcol_info is not None
 
     def execute(self, context):
+        settings = context.scene.vertex_color_master_settings
         mesh = context.active_object.data
 
         iso_vcol = mesh.vertex_colors.active
 
         if self.discard:
             mesh.vertex_colors.remove(iso_vcol)
+            settings.update_brush_value(context)
             return {'FINISHED'}
 
         vcol_info = get_isolated_channel_ids(iso_vcol)
@@ -786,6 +889,7 @@ class VertexColorMaster_ApplyIsolatedChannel(bpy.types.Operator):
         copy_channel(mesh, iso_vcol, vcol, 0, channel_idx)
         mesh.vertex_colors.active = vcol
         mesh.vertex_colors.remove(iso_vcol)
+        settings.update_brush_value(context)
 
         return {'FINISHED'}
 
@@ -1083,6 +1187,8 @@ class VertexColorMaster(bpy.types.Panel):
         row = col.row(align=True)
         row.operator('vertexcolormaster.invert', 'Invert')
         row.operator('vertexcolormaster.posterize', 'Posterize')
+        row = col.row(align=True)
+        row.operator('vertexcolormaster.remap', 'Remap')
 
 
     def draw_src_dst_operations(self, context, layout, obj, settings):
@@ -1153,6 +1259,7 @@ def register():
     bpy.utils.register_class(VertexColorMaster_Fill)
     bpy.utils.register_class(VertexColorMaster_Invert)
     bpy.utils.register_class(VertexColorMaster_Posterize)
+    bpy.utils.register_class(VertexColorMaster_Remap)
     bpy.utils.register_class(VertexColorMaster_CopyChannel)
     bpy.utils.register_class(VertexColorMaster_RgbToGrayscale)
     bpy.utils.register_class(VertexColorMaster_BlendChannels)
@@ -1172,6 +1279,7 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_Fill)
     bpy.utils.unregister_class(VertexColorMaster_Invert)
     bpy.utils.unregister_class(VertexColorMaster_Posterize)
+    bpy.utils.unregister_class(VertexColorMaster_Remap)
     bpy.utils.unregister_class(VertexColorMaster_CopyChannel)
     bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
     bpy.utils.unregister_class(VertexColorMaster_BlendChannels)

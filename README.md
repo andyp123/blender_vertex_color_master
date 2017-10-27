@@ -63,6 +63,17 @@ Posterize the value of the currently active channel(s). Useful for cleaning up c
 
 + __Steps__ (2) - The number of value steps to posterize to. For example, setting this to 5 would snap the values of the active channel(s) to 0, 0.25, 0.5, 0.75 and 1, whilst leaving the default setting of 2, would result in black and white.
 
+### Remap
+Remap the value of the currently active channel(s). This function takes values in the active channel and scales them based on an input range and output range. It's somewhat similar to using levels in a 2d graphics package, so it can be used to adjust the minimum and maximum brightness, invert etc. If used on individual channels, it can be used to shift colors apart.
+
++ __Input Range Min__ (0) - Minimum value of the input range.
+
++ __Input Range Max__ (1) - Maximum value of the input range.
+
++ __Output Range Min__ (0) - Minimum value of the output range.
+
++ __Output Range Min__ (1) - Maximum value of the output range.
+
 ### Channel/Weights Transfer
 This section allows quick transfer of data between different vertex color and vertex groups on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled.
 
@@ -97,8 +108,8 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
 
 ## Planned Features
-* Function to scale the range of channel values.
 * Improve alpha support:
   - Auto detect support instead of enabling it in preferences.
   - Enable RGB channels in Active Channels by default.
+* Experiment with copying data to and from UV channels
 * Add more operator inputs to the Redo panel.
