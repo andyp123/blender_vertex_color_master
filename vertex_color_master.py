@@ -17,21 +17,21 @@
 
 
 # TODO:
-# + Experiment with transfering data to and from UV layers
+# + break script into addon
 # + Improve alpha support:
 #  - Auto detect instead of enabled in prefs
 #  - Enable RGB channels by default
 # + Add more operator options to REDO panel
-# + make the isolated_channel stay in sync with vertex_colors.active
 
 import bpy
+import math
 from bpy.props import *
 from mathutils import Color
 
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer",
-    "version": (0, 0, 5),
+    "version": (0, 0, 6),
     "blender": (2, 79, 0),
     "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
@@ -46,6 +46,11 @@ blue_id = 'B'
 alpha_id = 'A'
 
 valid_channel_ids = 'RGBA'
+
+type_vcol = 'VCOL'
+type_vgroup = 'VGROUP'
+type_uv = 'UV'
+valid_layer_types = [type_vcol, type_vgroup, type_uv]
 
 
 def channel_items(self, context):
@@ -189,6 +194,29 @@ def blend_channels(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, r
             dst_vcol.data[loop_index].color[result_channel_idx] = src_vcol.data[loop_index].color[src_channel_idx]
     else:
         return
+
+    mesh.update()
+
+
+def uvs_to_color(mesh, src_uv, dst_vcol, dst_u_idx=0, dst_v_idx=1):
+    # by default copy u->r and v->g
+    # uv range is inf, -inf so use fmod to remap to 0-1
+    for loop_index, loop in enumerate(mesh.loops):
+        c = dst_vcol.data[loop_index].color
+        uv = src_uv.data[loop_index].uv
+        c[dst_u_idx] = math.fmod(uv[0], 1.0)
+        c[dst_v_idx] = math.fmod(uv[1], 1.0)
+        dst_vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
+def color_to_uvs(mesh, src_vcol, dst_uv, src_u_idx=0, src_v_idx=1):
+    # by default copy r->u and g->v
+    for loop_index, loop in enumerate(mesh.loops):
+        c = src_vcol.data[loop_index].color
+        uv = [c[src_u_idx], c[src_v_idx]]
+        dst_uv.data[loop_index].uv = uv
 
     mesh.update()
 
@@ -375,48 +403,84 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
     mesh.update()
 
 
-def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_weight=False):
+def get_layer_info(context):
+    settings = context.scene.vertex_color_master_settings
+
+    d = ' ' # delimiter
+    s = settings.src_vcol_id
+    src_type = s[:s.find(d)]
+    src_id = s[s.find(d) + 1:]
+
+    s = settings.dst_vcol_id
+    dst_type = s[:s.find(d)]
+    dst_id = s[s.find(d) + 1:]
+
+    return [src_type, src_id, dst_type, dst_id]
+
+
+def get_validated_input(context, get_src, get_dst):
     settings = context.scene.vertex_color_master_settings
     obj = context.active_object
     mesh = obj.data
 
     rv = {}
-
     message = None
 
-    if not (src_is_weight and dst_is_weight) and mesh.vertex_colors is None:
-        message = "Object has no vertex colors."
+    layer_info = get_layer_info(context)
+    src_type = layer_info[0]
+    src_id = layer_info[1]
+    dst_type = layer_info[2]
+    dst_id = layer_info[3]
 
+    # are these conditions actually possible?
+    if message is None:
+        if (src_type == type_vcol or dst_type == type_vcol) and mesh.vertex_colors is None:
+            message = "Object has no vertex colors."
+        if (src_type == type_vgroup or dst_type == type_vgroup) and obj.vertex_groups is None:
+            message = "Object has no vertex groups."
+        if (src_type == type_uv or dst_type == type_uv) and mesh.uv_layers is None:
+            message = "Object has no uv layers."
+
+    # validate src
     if get_src and message is None:
-        if not src_is_weight:
-            if settings.src_vcol_id in mesh.vertex_colors:
-                rv['src_vcol'] = mesh.vertex_colors[settings.src_vcol_id]
-                rv['src_channel_idx'] = channel_id_to_idx(
-                    settings.src_channel_id)
+        if src_type == type_vcol:
+            if src_id in mesh.vertex_colors:
+                rv['src_vcol'] = mesh.vertex_colors[src_id]
+                rv['src_channel_idx'] = channel_id_to_idx(settings.src_channel_id)
             else:
                 message = "Src color layer is not valid."
+        elif src_type == type_uv:
+            if src_id in mesh.uv_layers:
+                rv['src_uv'] = mesh.uv_layers[src_id]
+            else:
+                message = "Src UV layer is not valid."            
         else:
             src_vgroup_idx = -1
             for group in obj.vertex_groups:
-                if group.name == settings.src_vcol_id:
+                if group.name == src_id:
                     src_vgroup_idx = group.index
                     rv['src_vgroup_idx'] = src_vgroup_idx
                     break
             if src_vgroup_idx < 0:
                 message = "Src vertex group is not valid."
 
+    # validate dst
     if get_dst and message is None:
-        if not dst_is_weight:
-            if settings.dst_vcol_id in mesh.vertex_colors:
-                rv['dst_vcol'] = mesh.vertex_colors[settings.dst_vcol_id]
-                rv['dst_channel_idx'] = channel_id_to_idx(
-                    settings.dst_channel_id)
+        if dst_type == type_vcol:
+            if dst_id in mesh.vertex_colors:
+                rv['dst_vcol'] = mesh.vertex_colors[dst_id]
+                rv['dst_channel_idx'] = channel_id_to_idx(settings.dst_channel_id)
             else:
                 message = "Dst color layer is not valid."
+        elif dst_type == type_uv:
+            if dst_id in mesh.uv_layers:
+                rv['dst_uv'] = mesh.uv_layers[dst_id]
+            else:
+                message = "Dst UV layer is not valid." 
         else:
             dst_vgroup_idx = -1
             for group in obj.vertex_groups:
-                if group.name == settings.dst_vcol_id:
+                if group.name == dst_id:
                     dst_vgroup_idx = group.index
                     rv['dst_vgroup_idx'] = dst_vgroup_idx
                     break
@@ -431,6 +495,58 @@ def get_validated_input(context, get_src, get_dst, src_is_weight=False, dst_is_w
 # MAIN OPERATOR CLASSES
 ###############################################################################
 
+class VertexColorMaster_ColorToUVs(bpy.types.Operator):
+    """Copy vertex color channel to UVs"""
+    bl_idname = 'vertexcolormaster.color_to_uvs'
+    bl_label = 'VCM Color to UVs'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        vi = get_validated_input(context, get_src=True, get_dst=True)
+
+        if vi['error'] is not None:
+            self.report({'ERROR'}, vi['error'])
+            return {'FINISHED'}
+
+        mesh = context.active_object.data
+        u_idx = 0
+        v_idx = 1
+        color_to_uvs(mesh, vi['src_vcol'], vi['dst_uv'], u_idx, v_idx)
+
+        return {'FINISHED'}
+
+
+class VertexColorMaster_UVsToColor(bpy.types.Operator):
+    """Copy UVs to vertex color channel"""
+    bl_idname = 'vertexcolormaster.uvs_to_color'
+    bl_label = 'VCM UVs to Color'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        vi = get_validated_input(context, get_src=True, get_dst=True)
+
+        if vi['error'] is not None:
+            self.report({'ERROR'}, vi['error'])
+            return {'FINISHED'}
+
+        mesh = context.active_object.data
+        u_idx = 0
+        v_idx = 1
+        uvs_to_color(mesh, vi['src_uv'], vi['dst_vcol'], u_idx, v_idx)
+
+        return {'FINISHED'}
+
+
 class VertexColorMaster_ColorToWeights(bpy.types.Operator):
     """Copy vertex color channel to vertex group weights"""
     bl_idname = 'vertexcolormaster.color_to_weights'
@@ -443,8 +559,7 @@ class VertexColorMaster_ColorToWeights(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        vi = get_validated_input(
-            context, get_src=True, get_dst=True, dst_is_weight=True)
+        vi = get_validated_input(context, get_src=True, get_dst=True)
 
         if vi['error'] is not None:
             self.report({'ERROR'}, vi['error'])
@@ -468,8 +583,7 @@ class VertexColorMaster_WeightsToColor(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        vi = get_validated_input(
-            context, get_src=True, get_dst=True, src_is_weight=True)
+        vi = get_validated_input(context, get_src=True, get_dst=True)
 
         if vi['error'] is not None:
             self.report({'ERROR'}, vi['error'])
@@ -994,40 +1108,47 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         description="Mask based on currently selected mesh elements."
     )
 
-    def isolated_channel_items(self, context):
-        mesh = context.active_object.data
-        isolated_channels = []
-        for vcol in mesh.vertex_colors:
-            vcol_info = get_isolated_channel_ids(vcol)
-            if vcol_info is not None:
-                readable_name = "{0}.{1}".format(vcol_info[0], vcol_info[1])
-                isolated_channels.append((vcol.name, readable_name, ''))
-        return isolated_channels
+    # def isolated_channel_items(self, context):
+    #     mesh = context.active_object.data
+    #     isolated_channels = []
+    #     for vcol in mesh.vertex_colors:
+    #         vcol_info = get_isolated_channel_ids(vcol)
+    #         if vcol_info is not None:
+    #             readable_name = "{0}.{1}".format(vcol_info[0], vcol_info[1])
+    #             isolated_channels.append((vcol.name, readable_name, ''))
+    #     return isolated_channels
 
 
-    def update_isolated_channels(self, context):
-        mesh = context.active_object.data
-        if mesh.vertex_colors is not None:
-            vcol = mesh.vertex_colors[self.isolated_channel]
-            mesh.vertex_colors.active = vcol
+    # def update_isolated_channels(self, context):
+    #     mesh = context.active_object.data
+    #     if mesh.vertex_colors is not None:
+    #         vcol = mesh.vertex_colors[self.isolated_channel]
+    #         mesh.vertex_colors.active = vcol
 
-    isolated_channel = EnumProperty(
-        name="Isolated Channel",
-        items=isolated_channel_items,
-        description="Currently selected isolated channel",
-        update=update_isolated_channels
-    )
+    # isolated_channel = EnumProperty(
+    #     name="Isolated Channel",
+    #     items=isolated_channel_items,
+    #     description="Currently selected isolated channel",
+    #     update=update_isolated_channels
+    # )
 
     def vcol_layer_items(self, context):
         obj = context.active_object
         mesh = obj.data
-        vertex_colors = [] if mesh.vertex_colors is None else [
-            (vcol.name, vcol.name, '') for vcol in mesh.vertex_colors]
-        vertex_groups = [(group.name, 'W: ' + group.name, '')
-                         for group in obj.vertex_groups]
-        vertex_colors.extend(vertex_groups)
 
-        return vertex_colors
+        items = [] if mesh.vertex_colors is None else [
+            ("{0} {1}".format(type_vcol, vcol.name), 
+             vcol.name, "") for vcol in mesh.vertex_colors]
+        ext = [] if obj.vertex_groups is None else [
+            ("{0} {1}".format(type_vgroup, group.name),
+             "W: " + group.name, "") for group in obj.vertex_groups]
+        items.extend(ext)
+        ext = [] if mesh.uv_layers is None else [
+            ("{0} {1}".format(type_uv, uv.name),
+             "UV: " + uv.name, "") for uv in mesh.uv_layers]
+        items.extend(ext)
+
+        return items
 
     src_vcol_id = EnumProperty(
         name="Source Layer",
@@ -1194,9 +1315,11 @@ class VertexColorMaster(bpy.types.Panel):
     def draw_src_dst_operations(self, context, layout, obj, settings):
         col = layout.column(align=True)
         row = col.row()
-        row.label('Channel/Weights Transfer')
-        src_is_vg = settings.src_vcol_id in obj.vertex_groups
-        dst_is_vg = settings.dst_vcol_id in obj.vertex_groups
+        row.label('Data Transfer')
+
+        layer_info = get_layer_info(context)
+        src_type = layer_info[0]
+        dst_type = layer_info[2]
 
         lcol_percentage = 0.8
         row = layout.row()
@@ -1206,7 +1329,7 @@ class VertexColorMaster(bpy.types.Panel):
         split = split.split(align=True)
         col = split.column(align=True)
         col.prop(settings, 'src_channel_id', '')
-        col.enabled = not src_is_vg
+        col.enabled = src_type == type_vcol and dst_type != type_uv
 
         row = layout.row()
         split = row.split(lcol_percentage, align=True)
@@ -1215,9 +1338,9 @@ class VertexColorMaster(bpy.types.Panel):
         split = split.split(align=True)
         col = split.column(align=True)
         col.prop(settings, 'dst_channel_id', '')
-        col.enabled = not dst_is_vg
+        col.enabled = dst_type == type_vcol and src_type != type_uv
 
-        if not (src_is_vg or dst_is_vg):
+        if src_type == type_vcol and dst_type == type_vcol:
             row = layout.row(align=True)
             row.operator('vertexcolormaster.copy_channel', 'Copy').swap_channels = False
             row.operator('vertexcolormaster.copy_channel', 'Swap').swap_channels = True
@@ -1234,15 +1357,26 @@ class VertexColorMaster(bpy.types.Panel):
             row = col.row(align=True)
             row.operator('vertexcolormaster.copy_channel', 'Src ({0}) to Dst RGB'.format(
                 settings.src_channel_id)).all_channels = True
-        elif src_is_vg and not dst_is_vg:
+        elif src_type == type_vgroup and dst_type == type_vcol:
             row = layout.row(align=True)
             row.operator('vertexcolormaster.weights_to_color',
                          'Weights to Dst ({0})'.format(settings.src_channel_id))
-        elif dst_is_vg and not src_is_vg:
+        elif src_type == type_vcol and dst_type == type_vgroup:
             row = layout.row(align=True)
             row.operator('vertexcolormaster.color_to_weights',
                          'Src ({0}) to Weights'.format(settings.src_channel_id))
-        # else: # src_is_vg and dst_is_vg
+        elif src_type == type_uv and dst_type == type_vcol:
+            row = layout.row(align=True)
+            row.operator('vertexcolormaster.uvs_to_color',
+                         'UVs to Dst'.format(settings.src_channel_id))
+        elif src_type == type_vcol and dst_type == type_uv:
+            row = layout.row(align=True)
+            row.operator('vertexcolormaster.color_to_uvs',
+                         'Src to UVs'.format(settings.src_channel_id))
+        else:
+            # unsupported: vgroup <-> vgroup, uv <-> uv, vgroup <-> uv
+            row = layout.row(align=True)
+            row.label("Src > Dst is unsupported")
 
 
 ###############################################################################
@@ -1266,6 +1400,8 @@ def register():
     bpy.utils.register_class(VertexColorMaster_EditBrushSettings)
     bpy.utils.register_class(VertexColorMaster_WeightsToColor)
     bpy.utils.register_class(VertexColorMaster_ColorToWeights)
+    bpy.utils.register_class(VertexColorMaster_UVsToColor)
+    bpy.utils.register_class(VertexColorMaster_ColorToUVs)
     bpy.utils.register_class(VertexColorMaster_IsolateChannel)
     bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
 
@@ -1286,6 +1422,8 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_EditBrushSettings)
     bpy.utils.unregister_class(VertexColorMaster_WeightsToColor)
     bpy.utils.unregister_class(VertexColorMaster_ColorToWeights)
+    bpy.utils.unregister_class(VertexColorMaster_UVsToColor)
+    bpy.utils.unregister_class(VertexColorMaster_ColorToUVs)
     bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
     bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
 

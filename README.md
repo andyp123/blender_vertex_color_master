@@ -74,10 +74,10 @@ Remap the value of the currently active channel(s). This function takes values i
 
 + __Output Range Min__ (1) - Maximum value of the output range.
 
-### Channel/Weights Transfer
-This section allows quick transfer of data between different vertex color and vertex groups on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled.
+### Data Transfer
+This section allows quick transfer of data between different color layers, vertex groups and uv layers on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled. If a UV layer is selected (UVs are prefixed with 'UV:'), channels will not be selectable at all.
 
-If a vertex group is selected in either 'Src' or 'Dst', a different UI will be shown that enables only weight transfer. Transfer between two vertex groups is currently unsupported.
+Depending on the type of data selected in either 'Src' or 'Dst', a different operations will be available from the UI. If vertex groups or UVs are selected in either 'Src' or 'Dst', a different UI will be shown that enables only simple data transfer. Transfer between two vertex groups, uv layers or vertex groups and uv layer is currently unsupported.
 
 ### Copy / Swap
 Copy data from the 'Src' layer/channel to the 'Dst' layer/channel. Using swap will swap the data instead of copy.
@@ -107,9 +107,14 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 ### Src to Weights
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
 
+### UVs to Dst
+Copy the weight value of the uv layer in the 'Src' layer to the 'Dst' channel.
+
+### Src to UVs
+Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
+
 ## Planned Features
 * Improve alpha support:
   - Auto detect support instead of enabling it in preferences.
   - Enable RGB channels in Active Channels by default.
-* Experiment with copying data to and from UV channels
 * Add more operator inputs to the Redo panel.
