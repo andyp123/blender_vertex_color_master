@@ -82,6 +82,7 @@ channel_blend_mode_items = (('ADD', "Add", ""),
  # VCM-ISO_<CHANNEL_ID>_<VCOL_ID> ex. VCM-ISO_R_Col
 isolate_mode_name_prefix = 'VCM-ISO'
 
+
 ###############################################################################
 # HELPER FUNCTIONS
 ###############################################################################
@@ -1110,30 +1111,6 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         description="Mask based on currently selected mesh elements."
     )
 
-    # def isolated_channel_items(self, context):
-    #     mesh = context.active_object.data
-    #     isolated_channels = []
-    #     for vcol in mesh.vertex_colors:
-    #         vcol_info = get_isolated_channel_ids(vcol)
-    #         if vcol_info is not None:
-    #             readable_name = "{0}.{1}".format(vcol_info[0], vcol_info[1])
-    #             isolated_channels.append((vcol.name, readable_name, ''))
-    #     return isolated_channels
-
-
-    # def update_isolated_channels(self, context):
-    #     mesh = context.active_object.data
-    #     if mesh.vertex_colors is not None:
-    #         vcol = mesh.vertex_colors[self.isolated_channel]
-    #         mesh.vertex_colors.active = vcol
-
-    # isolated_channel = EnumProperty(
-    #     name="Isolated Channel",
-    #     items=isolated_channel_items,
-    #     description="Currently selected isolated channel",
-    #     update=update_isolated_channels
-    # )
-
     def vcol_layer_items(self, context):
         obj = context.active_object
         mesh = obj.data
@@ -1219,13 +1196,6 @@ class VertexColorMaster(bpy.types.Panel):
 
     def draw_isolate_mode_layout(self, context, obj, vcol_id, channel_id, settings):
         layout = self.layout
-
-        # TODO: make the isolated_channel stay in sync with vertex_colors.active
-        # col = layout.column(align=True)
-        # row = col.row(align=True)
-        # row.label("Isolated Channel Mode")
-        # row = col.row(align=True)
-        # row.prop(settings, 'isolated_channel', "")
 
         col = layout.column()
         row = col.row()
