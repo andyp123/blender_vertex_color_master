@@ -1336,7 +1336,7 @@ class VertexColorMaster(bpy.types.Panel):
         elif src_type == type_vgroup and dst_type == type_vcol:
             row = layout.row(align=True)
             row.operator('vertexcolormaster.weights_to_color',
-                         'Weights to Dst ({0})'.format(settings.src_channel_id))
+                         'Weights to Dst ({0})'.format(settings.dst_channel_id))
         elif src_type == type_vcol and dst_type == type_vgroup:
             row = layout.row(align=True)
             row.operator('vertexcolormaster.color_to_weights',
@@ -1344,11 +1344,10 @@ class VertexColorMaster(bpy.types.Panel):
         elif src_type == type_uv and dst_type == type_vcol:
             row = layout.row(align=True)
             row.operator('vertexcolormaster.uvs_to_color',
-                         'UVs to Dst'.format(settings.src_channel_id))
+                         'UVs to Dst')
         elif src_type == type_vcol and dst_type == type_uv:
             row = layout.row(align=True)
-            row.operator('vertexcolormaster.color_to_uvs',
-                         'Src to UVs'.format(settings.src_channel_id))
+            row.operator('vertexcolormaster.color_to_uvs', 'Src to UVs')
         else:
             # unsupported: vgroup <-> vgroup, uv <-> uv, vgroup <-> uv
             row = layout.row(align=True)
