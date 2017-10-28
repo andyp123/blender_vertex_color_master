@@ -1223,10 +1223,14 @@ class VertexColorMaster(bpy.types.Panel):
             row.prop(brush, 'color', text="")
             row.prop(settings, 'brush_value', 'Val', slider=True)
             row = col.row(align=True)
+            row.prop(brush, 'strength', text="Strength")
+            row = col.row(align=True)
             row.prop(settings, 'match_brush_to_active_channels')
         else:
             row = col.row(align=True)
             row.prop(settings, 'brush_value_isolate', 'Val', slider=True)
+            row = col.row(align=True)
+            row.prop(brush, 'strength', text="Strength")
 
         col = layout.column(align=True)
         row = col.row(align=True)
