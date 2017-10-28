@@ -24,7 +24,7 @@
 # + Add more operator options to REDO panel
 
 import bpy
-import math
+from math import fmod
 from bpy.props import *
 from mathutils import Color
 
@@ -200,12 +200,14 @@ def blend_channels(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, r
 
 def uvs_to_color(mesh, src_uv, dst_vcol, dst_u_idx=0, dst_v_idx=1):
     # by default copy u->r and v->g
-    # uv range is inf, -inf so use fmod to remap to 0-1
+    # uv range is -inf, inf so use fmod to remap to 0-1
     for loop_index, loop in enumerate(mesh.loops):
         c = dst_vcol.data[loop_index].color
         uv = src_uv.data[loop_index].uv
-        c[dst_u_idx] = math.fmod(uv[0], 1.0)
-        c[dst_v_idx] = math.fmod(uv[1], 1.0)
+        u = fmod(uv[0], 1.0)
+        v = fmod(uv[1], 1.0)
+        c[dst_u_idx] = u + 1 if u < 0 else u
+        c[dst_v_idx] = v + 1 if v < 0 else v
         dst_vcol.data[loop_index].color = c
 
     mesh.update()
