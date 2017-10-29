@@ -134,19 +134,42 @@ def rgb_to_luminosity(color):
 def convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, dst_all_channels=False):
     if dst_all_channels:
         for loop_index, loop in enumerate(mesh.loops):
-            luminosity = rgb_to_luminosity(src_vcol.data[loop_index].color)
-            dst_vcol.data[loop_index].color = [luminosity] * 3
+            c = src_vcol.data[loop_index].color
+            luminosity = rgb_to_luminosity(c)
+            c[0] = luminosity # assigning this way will preserve alpha
+            c[1] = luminosity
+            c[2] = luminosity
+            dst_vcol.data[loop_index].color = c
     else:
         for loop_index, loop in enumerate(mesh.loops):
             luminosity = rgb_to_luminosity(src_vcol.data[loop_index].color)
             dst_vcol.data[loop_index].color[dst_channel_idx] = luminosity
 
 
-def copy_channel(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, swap=False, dst_all_channels=False):
+# alpha_mode
+# 'OVERWRITE' - replace with copied channel value
+# 'PRESERVE' - keep existing alpha value
+# 'FILL' - fill alpha with 1.0
+def copy_channel(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, swap=False,
+                 dst_all_channels=False, alpha_mode='PRESERVE'):
     if dst_all_channels:
-        for loop_index, loop in enumerate(mesh.loops):
-            src_val = src_vcol.data[loop_index].color[src_channel_idx]
-            dst_vcol.data[loop_index].color = [src_val] * 3
+        color_size = len(src_vcol.data[0].color) if len(src_vcol.data) > 0 else 3
+        if alpha_mode == 'OVERWRITE' or color_size < 4:
+            for loop_index, loop in enumerate(mesh.loops):
+                src_val = src_vcol.data[loop_index].color[src_channel_idx]
+                dst_vcol.data[loop_index].color = [src_val] * color_size
+        elif alpha_mode == 'FILL':
+            for loop_index, loop in enumerate(mesh.loops):
+                src_val = src_vcol.data[loop_index].color[src_channel_idx]
+                dst_vcol.data[loop_index].color = [src_val, src_val, src_val, 1.0]
+        else: # default to preserve
+            for loop_index, loop in enumerate(mesh.loops):
+                c = src_vcol.data[loop_index].color
+                src_val = c[src_channel_idx]
+                c[0] = src_val
+                c[1] = src_val
+                c[2] = src_val
+                dst_vcol.data[loop_index].color = c
     else:
         if swap:
             for loop_index, loop in enumerate(mesh.loops):
@@ -952,10 +975,10 @@ class VertexColorMaster_IsolateChannel(bpy.types.Operator):
         iso_vcol.name = iso_vcol_id
         channel_idx = channel_id_to_idx(self.src_channel_id)
 
-        copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True)
+        copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True, alpha_mode='FILL')
         mesh.vertex_colors.active = iso_vcol
         brush = bpy.data.brushes['Draw']
-        brush.color = [settings.brush_value_isolate]*3
+        brush.color = [settings.brush_value_isolate] * 3
 
         return {'FINISHED'}
 
