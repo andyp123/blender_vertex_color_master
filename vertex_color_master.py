@@ -18,10 +18,14 @@
 
 # TODO:
 # + break script into addon
-# + Improve alpha support:
-#  - Auto detect instead of enabled in prefs
-#  - Enable RGB channels by default
+# + Move addon to own tab
+# + Clean up workflow for filling etc.
+# + Optimisations of channel masked functions / remove entirely (can isolate)
 # + Add more operator options to REDO panel
+# + Add shortcut to bake AO
+# + Add function to do quick gradient shading
+# + Add function to set UV shells to random colors
+# + Add function to bake curvature...
 
 import bpy
 from math import fmod
@@ -31,7 +35,7 @@ from mathutils import Color
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer",
-    "version": (0, 6),
+    "version": (0, 65),
     "blender": (2, 79, 0),
     "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
@@ -54,10 +58,17 @@ valid_layer_types = [type_vcol, type_vgroup, type_uv]
 
 
 def channel_items(self, context):
-    prefs = context.user_preferences.addons[__name__].preferences
+    color_size = 3
+
+    obj = context.active_object
+    if obj.type == 'MESH' and obj.data.vertex_colors is not None:
+        vcol = obj.data.vertex_colors.active
+        if len(vcol.data) > 0:
+            color_size = len(vcol.data[0].color)
+
     items = [(red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", "")]
 
-    if prefs.alpha_support:
+    if color_size > 3:
         items.append((alpha_id, "A", ""))
 
     return items
@@ -1038,20 +1049,6 @@ class VertexColorMaster_ApplyIsolatedChannel(bpy.types.Operator):
 # MAIN CLASS, UI, SETTINGS, PREFS AND REGISTRATION
 ###############################################################################
 
-class VertexColorMasterAddonPreferences(bpy.types.AddonPreferences):
-    bl_idname = __name__
-
-    alpha_support = BoolProperty(
-        name="Alpha Support",
-        default=False,
-        description="Enable support for vertex color alpha, available in some builds of Blender",
-    )
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, 'alpha_support')
-
-
 class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
     def update_active_channels(self, context):
@@ -1372,7 +1369,6 @@ class VertexColorMaster(bpy.types.Panel):
 ###############################################################################
 
 def register():
-    bpy.utils.register_class(VertexColorMasterAddonPreferences)
     bpy.utils.register_class(VertexColorMasterProperties)
     bpy.types.Scene.vertex_color_master_settings = PointerProperty(
         type=VertexColorMasterProperties)
@@ -1395,7 +1391,6 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(VertexColorMasterAddonPreferences)
     bpy.utils.unregister_class(VertexColorMasterProperties)
     del bpy.types.Scene.vertex_color_master_settings
 
