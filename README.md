@@ -19,7 +19,7 @@ This add-on is mostly designed for people who use vertex colors as extra non-col
 
 The add-on will appear in the Brush tab of the tools menu in vertex paint mode as shown in the following image.
 
-![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vertex_color_master.png)
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vcm_usage_examples.gif.gif)
 
 ## Functions
 
@@ -29,7 +29,7 @@ Brush settings contains a few of the most useful brush options so that the add-o
 + __Match Active Channels__ (on) - With this option enabled, changing the active channels will update the brush color to match the channels that are active, such that enabling only R will give red, R and G will give yellow and all RGB will give white etc. If this is undesirable, disable this option.
 
 ### Fill With Color
-This will ignore any selected active channels and fill the mesh with the current brush color. It can use the selection mask mode, so this is a handy shortcut for filling selected faces or vertices with a specific color instead of trying to set the value via channels or painting.
+This will ignore any selected active channels and fill the mesh with the current brush color. It can use the selection mask mode, so this is a handy shortcut for filling selected faces or vertices with a specific color instead of trying to set the value via channels or painting. Note that you can also fill using Blender's built in fill tool (shift + k), which is much faster, but it doesn't support vertex masking, and face masking is handled differently.
 
 + __Fill Color__ (white) - Color with which to fill the mesh or selection (if using selection mask).
 
