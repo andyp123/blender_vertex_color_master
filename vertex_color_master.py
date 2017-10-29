@@ -1243,35 +1243,25 @@ class VertexColorMaster(bpy.types.Panel):
 
         if mode == 'COLOR':
             row = col.row(align=True)
+            row.prop(settings, 'match_brush_to_active_channels')
+            row = col.row(align=True)
             row.prop(brush, 'color', text="")
             row.prop(settings, 'brush_value', 'Val', slider=True)
             row = col.row(align=True)
             row.prop(brush, 'strength', text="Strength")
-            row = col.row(align=True)
-            row.prop(settings, 'match_brush_to_active_channels')
         else:
             row = col.row(align=True)
             row.prop(settings, 'brush_value_isolate', 'Val', slider=True)
             row = col.row(align=True)
             row.prop(brush, 'strength', text="Strength")
 
+        row = layout.row()
+        row.prop(brush, 'vertex_tool', text="Blend")
         col = layout.column(align=True)
-        row = col.row(align=True)
-        blend_mode_name = ''
-        for mode in brush_blend_mode_items:
-            if mode[0] == brush.vertex_tool:
-                blend_mode_name = mode[1]
-
-        row.label('Brush Mode: {0}'.format(blend_mode_name))
         row = col.row(align=True)
         row.operator('vertexcolormaster.edit_brush_settings', "Mix").blend_mode = 'MIX'
         row.operator('vertexcolormaster.edit_brush_settings', "Add").blend_mode = 'ADD'
-        row.operator('vertexcolormaster.edit_brush_settings', "Subtract").blend_mode = 'SUB'
-        row = col.row(align=True)
-        row.operator('vertexcolormaster.edit_brush_settings', "Lighten").blend_mode = 'LIGHTEN'
-        row.operator('vertexcolormaster.edit_brush_settings', "Darken").blend_mode = 'DARKEN'
-        row = col.row(align=True)
-        row.operator('vertexcolormaster.edit_brush_settings', "Multiply").blend_mode = 'MUL'
+        row.operator('vertexcolormaster.edit_brush_settings', "Sub").blend_mode = 'SUB'
         row.operator('vertexcolormaster.edit_brush_settings', "Blur").blend_mode = 'BLUR'
 
 
