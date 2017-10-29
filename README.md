@@ -19,7 +19,7 @@ This add-on is mostly designed for people who use vertex colors as extra non-col
 
 The add-on will appear in the Brush tab of the tools menu in vertex paint mode as shown in the following image.
 
-![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vcm_usage_examples.gif.gif)
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vcm_usage_examples.gif)
 
 ## Functions
 
