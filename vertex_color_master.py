@@ -372,7 +372,7 @@ def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
                 if blue_id in active_channels:
                     c[2] = posterize(c[2], steps)
                 if alpha_id in active_channels:
-                    c[2] = posterize(c[3], steps)
+                    c[3] = posterize(c[3], steps)
                 vcol.data[loop_index].color = c
     else:
         vertex_mask = True if mask == 'VERTEX' else False
@@ -388,7 +388,7 @@ def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
                 if blue_id in active_channels:
                     c[2] = posterize(c[2], steps)
                 if alpha_id in active_channels:
-                    c[2] = posterize(c[3], steps)
+                    c[3] = posterize(c[3], steps)
                 vcol.data[loop_index].color = c
 
     mesh.update()
@@ -407,7 +407,7 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
                 if blue_id in active_channels:
                     c[2] = remap(c[2], min0, max0, min1, max1)
                 if alpha_id in active_channels:
-                    c[2] = remap(c[3], min0, max0, min1, max1)
+                    c[3] = remap(c[3], min0, max0, min1, max1)
                 vcol.data[loop_index].color = c
     else:
         vertex_mask = True if mask == 'VERTEX' else False
@@ -423,7 +423,7 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
                 if blue_id in active_channels:
                     c[2] = remap(c[2], min0, max0, min1, max1)
                 if alpha_id in active_channels:
-                    c[2] = remap(c[3], min0, max0, min1, max1)
+                    c[3] = remap(c[3], min0, max0, min1, max1)
                 vcol.data[loop_index].color = c
 
     mesh.update()
