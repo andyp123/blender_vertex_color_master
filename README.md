@@ -9,10 +9,10 @@ An add-on for Blender that adds numerous features to assist working with vertex 
 5. Search for the add-on in the list (enter 'vertex' to quickly find it) and enable it.
 6. Save the user settings if you would like the script to always be enabled.
 
-__Note:__ If you are using a 2.79 based Buildbot version of Blender (available [here](https://builder.blender.org/download/)), you may use vertex color alpha, which must be enabled in the add-on preferences. To do this, click on the small arrow to the left of the add-on name in the Add-ons tab, and under Preferences enable 'Alpha Support'. If you don't have a compatible version of Blender, enabling alpha support will result in errors.
+__Note:__ If you are using a 2.79 based Buildbot version of Blender (available [here](https://builder.blender.org/download/)), you may use vertex color alpha, so you will see RGBA channels instead of just RGB as shown in the standard 2.79 release of Blender.
 
 ## Usage
-This add-on is mostly designed for people who use vertex colors as extra non-color data, such as artists making models for games, where such data can be useful for creating interesting shader effects, or for storing baked light data. The tools provided by this add-on allow the user to fill, invert or posterize individual color channels, as well as copy or swap channels between layers and exchange vertex weight data to and from color channels.
+This add-on is mostly designed for people who use vertex colors as extra non-color data, such as artists making models for games, where such data can be useful for creating interesting shader effects, or for storing baked light data. The tools provided by this add-on allow the user to fill, invert, posterize or remap individual color channels, as well as copy or swap channels between layers and exchange vertex weight and UV data to and from color channels.
 
 The add-on will appear in the Brush tab of the tools menu in vertex paint mode as shown in the following image.
 
@@ -38,7 +38,7 @@ When a single channel is selected, the option to isolate it and work in greyscal
 ![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_mode.png)
 
 ### Selection Mask Mode
-Selection mask mode sets the mask mode of the Fill, Invert and Posterize tools so they cn operate only on selected mesh elements.
+Selection mask mode sets the mask mode of the Fill, Invert, Posterize and Remap tools so they cn operate only on selected mesh elements.
 
 + __None__ - Do not use a selection mask.
 
@@ -113,8 +113,12 @@ Copy the weight value of the uv layer in the 'Src' layer to the 'Dst' channel.
 ### Src to UVs
 Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 
-## Planned Features
-* Improve alpha support:
-  - Auto detect support instead of enabling it in preferences.
-  - Enable RGB channels in Active Channels by default.
-* Add more operator inputs to the Redo panel.
+## Planned / Possible Features
+* Break script into full Add-on.
+* Move Add-on to own tab.
+* Clean up workflow for filling etc.
+* Optimisations of channel masked functions.
+* Add shortcut to bake AO.
+* Add function to do quick gradient shading.
+* Add function to set UV shells to random colors.
+* Add function to bake curvature to colors.
