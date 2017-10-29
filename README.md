@@ -4,6 +4,8 @@
 
 An add-on for [Blender](https://www.blender.org/) that adds numerous features to assist working with vertex colors.
 
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vcm_usage_examples.gif)
+
 ## Installation
 1. Download the script from GitHub by clicking [here](https://github.com/andyp123/blender_vertex_color_master/archive/master.zip).
 2. Open the downloaded .zip and extract the file 'vertex_color_master.py' to a temporary place on your computer.
@@ -19,7 +21,7 @@ This add-on is mostly designed for people who use vertex colors as extra non-col
 
 The add-on will appear in the Brush tab of the tools menu in vertex paint mode as shown in the following image.
 
-![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vcm_usage_examples.gif)
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vertex_color_master.png)
 
 ## Functions
 
