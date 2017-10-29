@@ -1,5 +1,8 @@
 # Vertex Color Master for Blender
-An add-on for Blender that adds numerous features to assist working with vertex colors.
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S3GTZ2J938U6Y&lc=GB&item_name=Andrew%20Palmer&currency_code=GBP&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
+
+An add-on for [Blender](https://www.blender.org/) that adds numerous features to assist working with vertex colors.
 
 ## Installation
 1. Download the script from GitHub by clicking [here](https://github.com/andyp123/blender_vertex_color_master/archive/master.zip).
@@ -24,6 +27,11 @@ The add-on will appear in the Brush tab of the tools menu in vertex paint mode a
 Brush settings contains a few of the most useful brush options so that the add-on can be open and useful without needing the full brush menu to be open. This way there is more space in the Tools panel, even on smaller displays.
 
 + __Match Active Channels__ (on) - With this option enabled, changing the active channels will update the brush color to match the channels that are active, such that enabling only R will give red, R and G will give yellow and all RGB will give white etc. If this is undesirable, disable this option.
+
+### Fill With Color
+This will ignore any selected active channels and fill the mesh with the current brush color. It can use the selection mask mode, so this is a handy shortcut for filling selected faces or vertices with a specific color instead of trying to set the value via channels or painting.
+
++ __Fill Color__ (white) - Color with which to fill the mesh or selection (if using selection mask).
 
 ### Active Channels
 The active channels section allows the user to enable or disable channels that the functions directly under the active channels will work on. For example, enabling only the R channel will mean that it is the only channel to be affected when the Invert button is pressed, etc. Different combinations of RGBA can be selected by holding the shift key while clicking on the channel buttons.
@@ -122,3 +130,9 @@ Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 * Add function to do quick gradient shading.
 * Add function to set UV shells to random colors.
 * Add function to bake curvature to colors.
+
+---
+
+If you like this Add-on and would like to make a donation, you can do so buy clicking this button. Every little helps, even if it just keeps me caffeinated!
+
+[![Donate](https://www.paypalobjects.com/en_US/GB/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S3GTZ2J938U6Y&lc=GB&item_name=Andrew%20Palmer&currency_code=GBP&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)

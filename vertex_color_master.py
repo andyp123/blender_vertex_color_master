@@ -300,6 +300,36 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
     mesh.update()
 
 
+# no channel checking. Designed to more efficiently apply a color to mesh
+def quick_fill_selected(mesh, vcol, color, mask='NONE'):
+    vcol_data = vcol.data
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = vcol_data[loop_index].color
+                c[0] = color[0]
+                c[1] = color[1]
+                c[2] = color[2]
+                vcol_data[loop_index].color = c
+    elif mask == 'VERTEX':
+        verts = mesh.vertices
+        for loop_index, loop in enumerate(mesh.loops):
+            if verts[loop.vertex_index].select:
+                c = vcol_data[loop_index].color
+                c[0] = color[0]
+                c[1] = color[1]
+                c[2] = color[2]
+                vcol_data[loop_index].color = c
+    else: # mask == 'NONE'
+        for loop_index, loop in enumerate(mesh.loops):
+            c = vcol_data[loop_index].color
+            c[0] = color[0]
+            c[1] = color[1]
+            c[2] = color[2]
+            vcol_data[loop_index].color = c
+
+
 def fill_selected(mesh, vcol, color, active_channels, mask='NONE'):
     if mask == 'FACE':
         selected_faces = [face for face in mesh.polygons if face.select]
@@ -947,6 +977,35 @@ class VertexColorMaster_EditBrushSettings(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class VertexColorMaster_QuickFill(bpy.types.Operator):
+    """Quick fill vertex color RGB with current brush color. Can use selection mask."""
+    bl_idname = 'vertexcolormaster.quick_fill'
+    bl_label = 'VCM Fill Color'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    fill_color = FloatVectorProperty(
+        name="Fill Color",
+        subtype='COLOR',
+        default=[1.0,1.0,1.0],
+        description="Color to fill vertex color data with."
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        settings = context.scene.vertex_color_master_settings
+
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+
+        quick_fill_selected(mesh, vcol, self.fill_color, settings.mask_mode)
+
+        return {'FINISHED'}
+
+
 class VertexColorMaster_IsolateChannel(bpy.types.Operator):
     """Isolate a specific channel to paint in grayscale."""
     bl_idname = 'vertexcolormaster.isolate_channel'
@@ -1246,6 +1305,8 @@ class VertexColorMaster(bpy.types.Panel):
             row.prop(settings, 'brush_value', 'Val', slider=True)
             row = col.row(align=True)
             row.prop(brush, 'strength', text="Strength")
+            row = col.row(align=True)
+            row.operator('vertexcolormaster.quick_fill', "Fill With Color").fill_color = brush.color
         else:
             row = col.row(align=True)
             row.prop(settings, 'brush_value_isolate', 'Val', slider=True)
@@ -1374,6 +1435,7 @@ def register():
         type=VertexColorMasterProperties)
 
     bpy.utils.register_class(VertexColorMaster)
+    bpy.utils.register_class(VertexColorMaster_QuickFill)
     bpy.utils.register_class(VertexColorMaster_Fill)
     bpy.utils.register_class(VertexColorMaster_Invert)
     bpy.utils.register_class(VertexColorMaster_Posterize)
@@ -1395,6 +1457,7 @@ def unregister():
     del bpy.types.Scene.vertex_color_master_settings
 
     bpy.utils.unregister_class(VertexColorMaster)
+    bpy.utils.unregister_class(VertexColorMaster_QuickFill)
     bpy.utils.unregister_class(VertexColorMaster_Fill)
     bpy.utils.unregister_class(VertexColorMaster_Invert)
     bpy.utils.unregister_class(VertexColorMaster_Posterize)
