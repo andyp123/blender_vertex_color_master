@@ -37,7 +37,7 @@ from mathutils import Color
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer",
-    "version": (0, 65),
+    "version": (0, 70),
     "blender": (2, 79, 0),
     "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
