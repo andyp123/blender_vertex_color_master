@@ -28,6 +28,8 @@
 # + Add function to bake curvature...
 
 import bpy
+import bmesh # for random color to mesh islands
+import random # for random color to mesh islands
 from math import fmod
 from bpy.props import *
 from mathutils import Color
@@ -561,6 +563,72 @@ def get_validated_input(context, get_src, get_dst):
 ###############################################################################
 # MAIN OPERATOR CLASSES
 ###############################################################################
+
+# Some of the code for this function is from an script by Bartosz Styperek
+class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
+    """Assign random colors to separate mesh islands"""
+    bl_idname = 'vertexcolormaster.randomise_mesh_island_colors'
+    bl_label = 'VCM Randomise Mesh Island Colors'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    order_based = BoolProperty(
+        name="Order Based",
+        description="The colors assigned will be based on the number of islands, not truly random.",
+        default=False
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        color_size = len(vcol.data[0].color)
+
+        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+        bpy.ops.mesh.select_all(action="DESELECT")
+
+        bm = bmesh.from_edit_mesh(mesh)
+        bm.faces.ensure_lookup_table()
+        color_layer = bm.loops.layers.color.active
+
+        # Find all islands in the mesh
+        mesh_islands = []
+        faces = bm.faces
+
+        while len(faces) > 0:
+            # Select linked faces to find island
+            faces[0].select_set(True)
+            bpy.ops.mesh.select_linked()
+            mesh_islands.append([f for f in faces if f.select])
+            # Hide the island and update faces
+            bpy.ops.mesh.hide(unselected=False)
+            faces = [f for f in faces if not f.hide]
+
+        bpy.ops.mesh.reveal()
+
+        # Fill each island with a random color
+        hue_separation = 1.0 / len(mesh_islands)
+        for index, island in enumerate(mesh_islands):
+            # Create a new color with a random hue and add alpha value if supported
+            color = Color((1, 0, 0)) # hsv 0, 1, 1
+            color.h = index * hue_separation if self.order_based else random.random()
+            if color_size > 3:
+                color.append(1)
+
+            print("{0}: hue={1}, ({2},{3},{4})".format(index, color.h, color.r, color.g, color.b))
+
+            for face in island:
+                for loop in face.loops:
+                    loop[color_layer] = color
+
+        bm.free()
+        bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
+
+        return {'FINISHED'}
+
 
 class VertexColorMaster_ColorToUVs(bpy.types.Operator):
     """Copy vertex color channel to UVs"""
@@ -1271,6 +1339,8 @@ class VertexColorMaster(bpy.types.Panel):
         self.draw_active_channel_operations(context, layout, obj, settings)
         layout.separator()
         self.draw_src_dst_operations(context, layout, obj, settings)
+        layout.separator()
+        self.draw_misc_operations(context, layout, obj, settings)
 
 
     def draw_isolate_mode_layout(self, context, obj, vcol_id, channel_id, settings):
@@ -1424,6 +1494,15 @@ class VertexColorMaster(bpy.types.Panel):
             row = layout.row(align=True)
             row.label("Src > Dst is unsupported")
 
+    def draw_misc_operations(self, context, layout, obj, settings):
+        col = layout.column(align=True)
+        row = col.row()
+        row.label('Misc Operations')
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
+
 
 ###############################################################################
 # OPERATOR REGISTRATION
@@ -1450,6 +1529,7 @@ def register():
     bpy.utils.register_class(VertexColorMaster_ColorToUVs)
     bpy.utils.register_class(VertexColorMaster_IsolateChannel)
     bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
+    bpy.utils.register_class(VertexColorMaster_RandomiseMeshIslandColors)
 
 
 def unregister():
@@ -1472,6 +1552,7 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_ColorToUVs)
     bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
     bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
+    bpy.utils.unregister_class(VertexColorMaster_RandomiseMeshIslandColors)
 
 
 # allows running addon from text editor
