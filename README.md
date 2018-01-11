@@ -123,6 +123,15 @@ Copy the weight value of the uv layer in the 'Src' layer to the 'Dst' channel.
 ### Src to UVs
 Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 
+### Misc Operations
+The 'Misc Operations' section contains features unrelated to the main features of the addon.
+
+### Randomise Mesh Island Colors
+All separate parts of a mesh (islands), will be assigned random colors. Only the hue will be randomised, but the saturation and value will always be 1.
+
++ __Order Based__ (off) - Instead of using actual random colors, set the colors based on the number of parts. This will result in the best possible separation of colors, as the default random setting can sometimes give different parts very similar shades.
+
+
 ## Planned / Possible Features
 * Break script into full Add-on.
 * Move Add-on to own tab.
@@ -130,7 +139,7 @@ Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 * Optimisations of channel masked functions.
 * Add shortcut to bake AO.
 * Add function to do quick gradient shading.
-* Add function to set UV shells to random colors.
+* Add function to set UV islands to random colors.
 * Add function to bake curvature to colors.
 
 ---
