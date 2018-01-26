@@ -30,6 +30,7 @@
 import bpy
 import bmesh # for random color to mesh islands
 import random # for random color to mesh islands
+import copy # for copying data structures
 from math import fmod
 from bpy.props import *
 from mathutils import Color
@@ -39,7 +40,7 @@ bl_info = {
     "author": "Andrew Palmer",
     "version": (0, 70),
     "blender": (2, 79, 0),
-    "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
+    "location": "Vertex Paint | View3D > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
     "category": "Paint",
     "wiki_url": "https://github.com/andyp123/blender_vertex_color_master",
@@ -573,7 +574,13 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
     order_based = BoolProperty(
         name="Order Based",
-        description="The colors assigned will be based on the number of islands, not truly random.",
+        description="The colors assigned will be based on the number of islands. Not truly random, but maximum color separation.",
+        default=False
+    )
+
+    merge_similar = BoolProperty(
+        name="Merge Similar",
+        description="Use the same color for similar parts of the mesh (determined by equal face count).",
         default=False
     )
 
@@ -607,18 +614,29 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
             bpy.ops.mesh.hide(unselected=False)
             faces = [f for f in faces if not f.hide]
 
-        bpy.ops.mesh.reveal()
+        bpy.ops.mesh.reveal()  
 
-        # Fill each island with a random color
+
+        island_colors = {} # Island face count : Random color pairs
+
+        # HSV 0, 1, 1. Add an alpha channel if supported
+        base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
+
+        # Used for setting hue with order based color assignment
         hue_separation = 1.0 / len(mesh_islands)
-        for index, island in enumerate(mesh_islands):
-            # Create a new color with a random hue and add alpha value if supported
-            color = Color((1, 0, 0)) # hsv 0, 1, 1
-            color.h = index * hue_separation if self.order_based else random.random()
-            if color_size > 3:
-                color.append(1)
 
-            print("{0}: hue={1}, ({2},{3},{4})".format(index, color.h, color.r, color.g, color.b))
+        for index, island in enumerate(mesh_islands):
+            color = copy.copy(base_color)
+
+            if self.merge_similar:
+                face_count = len(island)
+                if face_count in island_colors.keys():
+                    color = island_colors[face_count]
+                else:
+                    color.h = random.random()
+                    island_colors[face_count] = color
+            else: 
+                color.h = index * hue_separation if self.order_based else random.random()
 
             for face in island:
                 for loop in face.loops:
@@ -1314,7 +1332,7 @@ class VertexColorMaster(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_label = 'Vertex Color Master'
-    bl_category = 'Tools'
+    bl_category =  'Vertex Color Master' # 'Tools'
     bl_context = 'vertexpaint'
 
     def draw(self, context):
