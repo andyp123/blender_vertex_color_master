@@ -33,7 +33,13 @@ import random # for random color to mesh islands
 import copy # for copying data structures
 from math import fmod
 from bpy.props import *
-from mathutils import Color
+from mathutils import Color, Vector, Matrix, Quaternion
+
+# for gradient tool
+from bpy_extras import view3d_utils
+import bgl
+
+
 
 bl_info = {
     "name": "Vertex Color Master",
@@ -565,7 +571,175 @@ def get_validated_input(context, get_src, get_dst):
 # MAIN OPERATOR CLASSES
 ###############################################################################
 
-# Some of the code for this function is from an script by Bartosz Styperek
+# For ModalGradient tool by Bartosz Styperek
+def draw_line(self, context):
+    # font_id = 0  # XXX, need to find out how best to get this.
+    # draw some text
+    # blf.position(font_id, 15, 30, 0)
+    # blf.size(font_id, 20, 72)
+    # blf.draw(font_id, "Pos " + str(self.endPoint.x) + " " + str(self.endPoint.y))
+
+    # 50% alpha, 2 pixel width line
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(0.0, 0.0, 0.0, 0.5)
+    bgl.glLineWidth(2)
+
+    bgl.glBegin(bgl.GL_LINE_STRIP)
+    bgl.glVertex2i(int(self.startPoint.x), int(self.startPoint.y))
+    bgl.glVertex2i(int(self.endPoint.x), int(self.endPoint.y))
+    bgl.glEnd()
+
+    # restore opengl defaults
+    bgl.glLineWidth(1)
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+
+
+def draw_pixels(self, context):
+    bgl.glEnable(bgl.GL_BLEND)
+
+    bgl.glColor3f(1, 0, 0)
+    for point in self.debugPixels:
+        bgl.glPointSize(10)
+        bgl.glBegin(bgl.GL_POINTS)
+        bgl.glVertex3f(point[0], point[1], 0)
+        bgl.glEnd()
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glPointSize(1)
+
+    bgl.glColor3f(0, 1, 0)
+    bgl.glPointSize(10)
+    bgl.glBegin(bgl.GL_POINTS)
+    bgl.glVertex3f(self.transStart.x, self.transStart.y, 0)
+    bgl.glVertex3f(self.transEnd.x, self.transEnd.y, 0)
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glPointSize(1)
+    # restore  defaults
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glColor3f(0.0, 0.0, 0.0)
+
+
+# This function from a script by Bartosz Styperek
+class VertexColorMaster_ModalGradient(bpy.types.Operator):
+    """Draw a line with the mouse to paint a vertex color gradient"""
+    bl_idname = "vertexcolormaster.vertex_color_gradient"
+    bl_label = "Linear vertex gradient"
+    bl_description = "Paint linear vertex gradient."
+    bl_options = {"REGISTER", "UNDO"}
+
+    _handle = None
+    _handlePixelsDraw = None
+    startPoint = None
+    endPoint = None
+    LMB_Clicked = False
+    Shift_Clicked = False
+    # createNewVC = BoolProperty(name="Add new VColor", description="Adds new vertex color layer instead of overriding active one", default=False)
+
+    def paintVerts(self, context):
+        obj = context.active_object
+        mesh = obj.data
+
+        region = context.region
+        rv3d = context.region_data
+
+        if not obj.data.vertex_colors:
+            obj.data.vertex_colors.new("Gradient")
+        bm = bmesh.new()  # create an empty BMesh
+        bm.from_mesh(mesh)  # fill it in from a Mesh
+        bm.verts.ensure_lookup_table()
+        vert2d = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
+
+        color_layer =bm.loops.layers.color.active
+
+        downVec = Vector((0,-1,0))
+        drawnVec = Vector((self.endPoint.x-self.startPoint.x ,self.endPoint.y-self.startPoint.y, 0)).normalized()
+        rotQuat = drawnVec.rotation_difference(downVec)
+        translationMatrix = Matrix.Translation(Vector((-self.startPoint.x, -self.startPoint.y, 0)))
+        transInv = translationMatrix.inverted()
+        rotMatrix = rotQuat.to_matrix().to_4x4()
+        combinedMat = transInv * rotMatrix * translationMatrix
+
+        transStart = combinedMat * self.startPoint.to_4d() #transform drawn line : rotate it to align to horizontal line
+        transEnd = combinedMat * self.endPoint.to_4d()
+        minY = transStart.y
+        maxY = transEnd.y
+        heightTrans = maxY - minY  #get theight of transformed vector
+
+        # self.transStart = transStart
+        # self.transEnd = transEnd
+        # dwaDPixels = [(view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
+        # self.debugPixels = [transInv * rotMatrix * translationMatrix * Vector((p.x, p.y, 0)) for p in dwaDPixels]
+        # args = (self, context)
+        # self._handlePixelsDraw = bpy.types.SpaceView3D.draw_handler_add(draw_pixels, args, 'WINDOW', 'POST_PIXEL')
+
+        # # ipdb.set_trace()
+        for vertPos in vert2d:  # island faces
+            vert  = vertPos[0]
+            vertCo4d = Vector((vertPos[1].x, vertPos[1].y, 0))
+            transVec = combinedMat * vertCo4d
+            col = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            for loop in vert.link_loops:
+                if bpy.app.version > (2, 79, 0):
+                    loop[color_layer] = [col, col, col, 1]
+                else:
+                    loop[color_layer] = [col, col, col]
+        bm.to_mesh(mesh)
+        bm.free()
+        bpy.ops.object.mode_set(mode='VERTEX_PAINT')
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+        delta=20
+        if event.type == 'MOUSEMOVE' and self.LMB_Clicked == True:
+            self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
+            if event.shift:
+                if self.startPoint.x - delta < event.mouse_region_x < self.startPoint.x + delta :
+                    self.endPoint = Vector((self.startPoint.x, event.mouse_region_y))
+                elif self.startPoint.y - delta < event.mouse_region_y < self.startPoint.y + delta :
+                    self.endPoint = Vector((event.mouse_region_x, self.startPoint.y))
+
+        elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == True:  # finish drawing box, and calculate uv Transformation
+            self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
+            if event.shift:
+                if self.startPoint.x - delta < event.mouse_region_x < self.startPoint.x + delta :
+                    self.endPoint = Vector((self.startPoint.x, event.mouse_region_y))
+                elif self.startPoint.y - delta < event.mouse_region_y < self.startPoint.y + delta :
+                    self.endPoint = Vector((event.mouse_region_x, self.startPoint.y))
+            self.LMB_Clicked = False
+            # if self._handle:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            self.paintVerts(context)
+            self.report({'INFO'}, 'Vertex colors have been generated')
+            return {'FINISHED'}
+
+        elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == False:
+            self.startPoint =Vector((event.mouse_region_x, event.mouse_region_y))
+            args = (self, context)
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
+            self.LMB_Clicked = True
+        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            # allow navigation
+            return {'PASS_THROUGH'}
+
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            # if self._handlePixelsDraw:
+            #     bpy.types.SpaceView3D.draw_handler_remove(self._handlePixelsDraw, 'WINDOW')
+            self.report({'INFO'}, 'CANCELLED')
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+
+    def invoke(self, context, event):
+        if context.area.type == 'VIEW_3D':
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "View3D not found, cannot run operator")
+            return {'CANCELLED'}
+
+
+# Partly based on code by Bartosz Styperek
 class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
     """Assign random colors to separate mesh islands"""
     bl_idname = 'vertexcolormaster.randomise_mesh_island_colors'
@@ -1520,6 +1694,8 @@ class VertexColorMaster(bpy.types.Panel):
         col = layout.column(align=True)
         row = col.row(align=True)
         row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
+        row = col.row(align=True)
+        row.operator('vertexcolormaster.vertex_color_gradient', "Gradient Tool")
 
 
 ###############################################################################
@@ -1548,7 +1724,7 @@ def register():
     bpy.utils.register_class(VertexColorMaster_IsolateChannel)
     bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
     bpy.utils.register_class(VertexColorMaster_RandomiseMeshIslandColors)
-
+    bpy.utils.register_class(VertexColorMaster_ModalGradient)
 
 def unregister():
     bpy.utils.unregister_class(VertexColorMasterProperties)
@@ -1571,6 +1747,7 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
     bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
     bpy.utils.unregister_class(VertexColorMaster_RandomiseMeshIslandColors)
+    bpy.utils.unregister_class(VertexColorMaster_ModalGradient)
 
 
 # allows running addon from text editor
