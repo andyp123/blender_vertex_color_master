@@ -81,6 +81,9 @@ def channel_items(self, context):
 
     return items
 
+hsv_items = (('H', "H", ""),
+             ('S', "S", ""),
+             ('V', "V", ""))
 
 brush_blend_mode_items = (('MIX', "Mix", ""),
                           ('ADD', "Add", ""),
@@ -478,6 +481,31 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
     mesh.update()
 
 
+def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, mask='NONE'):
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = Color(vcol.data[loop_index].color)
+                c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                c.s = max(0.0, min(c.s + s_offset, 1.0))
+                c.v = max(0.0, min(c.v + v_offset, 1.0))
+                vcol.data[loop_index].color = c
+    else:
+        vertex_mask = True if mask == 'VERTEX' else False
+        verts = mesh.vertices
+
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = Color(vcol.data[loop_index].color)
+                c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                c.s = max(0.0, min(c.s + s_offset, 1.0))
+                c.v = max(0.0, min(c.v + v_offset, 1.0))
+                vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
 def get_layer_info(context):
     settings = context.scene.vertex_color_master_settings
 
@@ -620,10 +648,10 @@ def draw_pixels(self, context):
 
 
 # This function from a script by Bartosz Styperek
-class VertexColorMaster_ModalGradient(bpy.types.Operator):
+class VertexColorMaster_LinearGradient(bpy.types.Operator):
     """Draw a line with the mouse to paint a vertex color gradient."""
-    bl_idname = "vertexcolormaster.vertex_color_gradient"
-    bl_label = "Linear vertex gradient"
+    bl_idname = "vertexcolormaster.linear_gradient"
+    bl_label = "VCM Linear Gradient Tool"
     bl_description = "Paint linear vertex gradient."
     bl_options = {"REGISTER", "UNDO"}
 
@@ -787,6 +815,14 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
     bl_label = 'VCM Randomise Mesh Island Colors'
     bl_options = {'REGISTER', 'UNDO'}
 
+    randomised_channels = EnumProperty(
+        name="Randomize HSV",
+        options={'ENUM_FLAG'},
+        items=hsv_items,
+        default={'H'},
+        description="Enable/Disable HSV channels for randomization."
+    )
+
     order_based = BoolProperty(
         name="Order Based",
         description="The colors assigned will be based on the number of islands. Not truly random, but maximum color separation.",
@@ -855,10 +891,17 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
                 if face_count in island_colors.keys():
                     color = island_colors[face_count]
                 else:
-                    color.h = random.random()
+                    color.h = random.random() if 'H' in self.randomised_channels else 0.0
+                    color.s = random.random() if 'S' in self.randomised_channels else 1.0
+                    color.v = random.random() if 'V' in self.randomised_channels else 1.0
                     island_colors[face_count] = color
-            else: 
-                color.h = index * hue_separation if self.order_based else random.random()
+            else:
+                if self.order_based:
+                    color.h = index * hue_separation
+                else: 
+                    color.h = random.random() if 'H' in self.randomised_channels else 0.0
+                color.s = random.random() if 'S' in self.randomised_channels else 1.0
+                color.v = random.random() if 'V' in self.randomised_channels else 1.0
 
             for face in island:
                 for loop in face.loops:
@@ -870,6 +913,50 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
         bm.free()
         bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
+
+        return {'FINISHED'}
+
+
+class VertexColorMaster_AdjustHSV(bpy.types.Operator):
+    """Adjust the Hue, Saturation and Value of the the active vertex colors"""
+    bl_idname = 'vertexcolormaster.adjust_hsv'
+    bl_label = 'VCM Adjust HSV'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    hue_adjust = FloatProperty(
+        name="Hue",
+        description="Hue adjustment.",
+        default=0.0,
+        min=-0.5,
+        max=0.5
+    )
+
+    sat_adjust = FloatProperty(
+        name="Saturation",
+        description="Saturation adjustment.",
+        default=0.0,
+        min=-1.0,
+        max=1.0
+    )
+
+    val_adjust = FloatProperty(
+        name="Value",
+        description="Value adjustment.",
+        default=0.0,
+        min=-1.0,
+        max=1.0
+    )
+
+    def execute(self, context):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active
+
+        if vcol is None:
+            self.report({'ERROR'}, "Can't modify HSV when no vertex color data exists.")
+            return {'FINISHED'}
+
+        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, settings.mask_mode)
 
         return {'FINISHED'}
 
@@ -1745,9 +1832,11 @@ class VertexColorMaster(bpy.types.Panel):
 
         col = layout.column(align=True)
         row = col.row(align=True)
+        row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
+        row = col.row(align=True)
         row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
         row = col.row(align=True)
-        row.operator('vertexcolormaster.vertex_color_gradient', "Gradient Tool")
+        row.operator('vertexcolormaster.linear_gradient', "Gradient Tool")
 
 
 ###############################################################################
@@ -1776,7 +1865,8 @@ def register():
     bpy.utils.register_class(VertexColorMaster_IsolateChannel)
     bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
     bpy.utils.register_class(VertexColorMaster_RandomiseMeshIslandColors)
-    bpy.utils.register_class(VertexColorMaster_ModalGradient)
+    bpy.utils.register_class(VertexColorMaster_LinearGradient)
+    bpy.utils.register_class(VertexColorMaster_AdjustHSV)
 
 def unregister():
     bpy.utils.unregister_class(VertexColorMasterProperties)
@@ -1799,7 +1889,8 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
     bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
     bpy.utils.unregister_class(VertexColorMaster_RandomiseMeshIslandColors)
-    bpy.utils.unregister_class(VertexColorMaster_ModalGradient)
+    bpy.utils.unregister_class(VertexColorMaster_LinearGradient)
+    bpy.utils.unregister_class(VertexColorMaster_AdjustHSV)
 
 
 # allows running addon from text editor
