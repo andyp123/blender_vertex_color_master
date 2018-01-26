@@ -643,14 +643,14 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
     start_color = FloatVectorProperty(
         name="Start Color",
         subtype='COLOR',
-        default=[0.0,1.0,0.0],
+        default=[0.0,0.0,0.0],
         description="Start color of the gradient."
     )
 
     end_color = FloatVectorProperty(
         name="End Color",
         subtype='COLOR',
-        default=[1.0,0.0,1.0],
+        default=[1.0,1.0,1.0],
         description="End color of the gradient."
     )
 
@@ -719,24 +719,27 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
         bm.free()
         bpy.ops.object.mode_set(mode='VERTEX_PAINT')
 
+
+    def axis_snap(self, start, end, delta):
+        if start.x - delta < end.x < start.x + delta:
+            return Vector((start.x, end.y))
+        if start.y - delta < end.y < start.y + delta:
+            return Vector((end.x, start.y))
+        return end
+
+
     def modal(self, context, event):
         context.area.tag_redraw()
-        delta=20
+        delta = 20
         if event.type == 'MOUSEMOVE' and self.LMB_Clicked == True:
             self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
             if event.shift:
-                if self.startPoint.x - delta < event.mouse_region_x < self.startPoint.x + delta :
-                    self.endPoint = Vector((self.startPoint.x, event.mouse_region_y))
-                elif self.startPoint.y - delta < event.mouse_region_y < self.startPoint.y + delta :
-                    self.endPoint = Vector((event.mouse_region_x, self.startPoint.y))
+                self.endPoint = self.axis_snap(self.startPoint, self.endPoint, delta)
 
         elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == True:  # finish drawing box, and calculate uv Transformation
             self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
             if event.shift:
-                if self.startPoint.x - delta < event.mouse_region_x < self.startPoint.x + delta :
-                    self.endPoint = Vector((self.startPoint.x, event.mouse_region_y))
-                elif self.startPoint.y - delta < event.mouse_region_y < self.startPoint.y + delta :
-                    self.endPoint = Vector((event.mouse_region_x, self.startPoint.y))
+                self.endPoint = self.axis_snap(self.startPoint, self.endPoint, delta)
             self.LMB_Clicked = False
             # if self._handle:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
