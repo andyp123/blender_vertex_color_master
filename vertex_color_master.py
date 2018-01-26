@@ -799,6 +799,12 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         default=False
     )
 
+    selected_only = BoolProperty(
+        name="Selected Only",
+        description="Only assign colors to selected islands.",
+        default=False
+    )
+
     @classmethod
     def poll(cls, context):
         obj = context.active_object
@@ -810,7 +816,6 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         color_size = len(vcol.data[0].color)
 
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-        bpy.ops.mesh.select_all(action="DESELECT")
 
         bm = bmesh.from_edit_mesh(mesh)
         bm.faces.ensure_lookup_table()
@@ -818,7 +823,10 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
         # Find all islands in the mesh
         mesh_islands = []
-        faces = bm.faces
+        selected_faces = ([f for f in bm.faces if f.select])
+        faces = selected_faces if self.selected_only else bm.faces
+
+        bpy.ops.mesh.select_all(action="DESELECT")
 
         while len(faces) > 0:
             # Select linked faces to find island
@@ -837,7 +845,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
 
         # Used for setting hue with order based color assignment
-        hue_separation = 1.0 / len(mesh_islands)
+        hue_separation = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
 
         for index, island in enumerate(mesh_islands):
             color = copy.copy(base_color)
@@ -855,6 +863,10 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
             for face in island:
                 for loop in face.loops:
                     loop[color_layer] = color
+
+        # Restore selection
+        for f in selected_faces:
+            f.select = True
 
         bm.free()
         bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
