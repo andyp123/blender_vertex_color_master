@@ -40,10 +40,9 @@ from bpy_extras import view3d_utils
 import bgl
 
 
-
 bl_info = {
     "name": "Vertex Color Master",
-    "author": "Andrew Palmer",
+    "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
     "version": (0, 70),
     "blender": (2, 79, 0),
     "location": "Vertex Paint | View3D > Vertex Color Master",
@@ -622,7 +621,7 @@ def draw_pixels(self, context):
 
 # This function from a script by Bartosz Styperek
 class VertexColorMaster_ModalGradient(bpy.types.Operator):
-    """Draw a line with the mouse to paint a vertex color gradient"""
+    """Draw a line with the mouse to paint a vertex color gradient."""
     bl_idname = "vertexcolormaster.vertex_color_gradient"
     bl_label = "Linear vertex gradient"
     bl_description = "Paint linear vertex gradient."
@@ -634,23 +633,43 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
     endPoint = None
     LMB_Clicked = False
     Shift_Clicked = False
-    # createNewVC = BoolProperty(name="Add new VColor", description="Adds new vertex color layer instead of overriding active one", default=False)
+
+    greyscale = BoolProperty(
+        name="Greyscale",
+        default=True,
+        description="Use a simple black to white gradient."
+        )
+
+    start_color = FloatVectorProperty(
+        name="Start Color",
+        subtype='COLOR',
+        default=[0.0,1.0,0.0],
+        description="Start color of the gradient."
+    )
+
+    end_color = FloatVectorProperty(
+        name="End Color",
+        subtype='COLOR',
+        default=[1.0,0.0,1.0],
+        description="End color of the gradient."
+    )
 
     def paintVerts(self, context):
-        obj = context.active_object
-        mesh = obj.data
-
         region = context.region
         rv3d = context.region_data
 
-        if not obj.data.vertex_colors:
-            obj.data.vertex_colors.new("Gradient")
+        obj = context.active_object
+        mesh = obj.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        color_size = len(vcol.data[0].color)
+
         bm = bmesh.new()  # create an empty BMesh
         bm.from_mesh(mesh)  # fill it in from a Mesh
         bm.verts.ensure_lookup_table()
+
         vert2d = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
 
-        color_layer =bm.loops.layers.color.active
+        color_layer = bm.loops.layers.color.active
 
         downVec = Vector((0,-1,0))
         drawnVec = Vector((self.endPoint.x-self.startPoint.x ,self.endPoint.y-self.startPoint.y, 0)).normalized()
@@ -664,26 +683,38 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
         transEnd = combinedMat * self.endPoint.to_4d()
         minY = transStart.y
         maxY = transEnd.y
-        heightTrans = maxY - minY  #get theight of transformed vector
+        heightTrans = maxY - minY  #get the height of transformed vector
 
-        # self.transStart = transStart
-        # self.transEnd = transEnd
-        # dwaDPixels = [(view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
-        # self.debugPixels = [transInv * rotMatrix * translationMatrix * Vector((p.x, p.y, 0)) for p in dwaDPixels]
-        # args = (self, context)
-        # self._handlePixelsDraw = bpy.types.SpaceView3D.draw_handler_add(draw_pixels, args, 'WINDOW', 'POST_PIXEL')
+        # Calculate hue, saturation and value shift for blending
+        c1_hue = self.start_color.h
+        c2_hue = self.end_color.h
+        hue_separation = c2_hue - c1_hue if abs(c2_hue - c1_hue) < abs(c1_hue - c2_hue) else c1_hue - c2_hue
+        c1_sat = self.start_color.s
+        sat_separation = self.end_color.s - c1_sat
+        c1_val = self.start_color.v
+        val_separation = self.end_color.v - c1_val
 
-        # # ipdb.set_trace()
+        # Create a template color of the correct size
+        base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
+
         for vertPos in vert2d:  # island faces
             vert  = vertPos[0]
             vertCo4d = Vector((vertPos[1].x, vertPos[1].y, 0))
             transVec = combinedMat * vertCo4d
-            col = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+
+            t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            color = copy.copy(base_color)
+            if self.greyscale:
+                color[0:3] = t,t,t
+            else:
+                # Hue wraps, and fmod doesn't work with negative values
+                color.h = fmod(1.0 + (c1_hue + hue_separation * t), 1.0) 
+                color.s = c1_sat + sat_separation * t
+                color.v = c1_val + val_separation * t
+
             for loop in vert.link_loops:
-                if bpy.app.version > (2, 79, 0):
-                    loop[color_layer] = [col, col, col, 1]
-                else:
-                    loop[color_layer] = [col, col, col]
+                loop[color_layer] = color
+
         bm.to_mesh(mesh)
         bm.free()
         bpy.ops.object.mode_set(mode='VERTEX_PAINT')
@@ -710,11 +741,11 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
             # if self._handle:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
             self.paintVerts(context)
-            self.report({'INFO'}, 'Vertex colors have been generated')
             return {'FINISHED'}
 
         elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == False:
-            self.startPoint =Vector((event.mouse_region_x, event.mouse_region_y))
+            self.startPoint = Vector((event.mouse_region_x, event.mouse_region_y))
+            self.endPoint = self.startPoint # To prevent drawing line to random place
             args = (self, context)
             self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
             self.LMB_Clicked = True
