@@ -655,6 +655,8 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
     )
 
     def paintVerts(self, context):
+        settings = context.scene.vertex_color_master_settings
+
         region = context.region
         rv3d = context.region_data
 
@@ -667,7 +669,12 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
         bm.from_mesh(mesh)  # fill it in from a Mesh
         bm.verts.ensure_lookup_table()
 
-        vert2d = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
+        # List of structures containing 3d vertex and project 2d position of vertex
+        vertex_data = None
+        if settings.mask_mode != 'NONE': # Face masking not currently supported here
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
+        else:
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
 
         color_layer = bm.loops.layers.color.active
 
@@ -697,9 +704,9 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
         # Create a template color of the correct size
         base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
 
-        for vertPos in vert2d:  # island faces
-            vert  = vertPos[0]
-            vertCo4d = Vector((vertPos[1].x, vertPos[1].y, 0))
+        for data in vertex_data:
+            vertex = data[0]
+            vertCo4d = Vector((data[1].x, data[1].y, 0))
             transVec = combinedMat * vertCo4d
 
             t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
@@ -712,7 +719,7 @@ class VertexColorMaster_ModalGradient(bpy.types.Operator):
                 color.s = c1_sat + sat_separation * t
                 color.v = c1_val + val_separation * t
 
-            for loop in vert.link_loops:
+            for loop in vertex.link_loops:
                 loop[color_layer] = color
 
         bm.to_mesh(mesh)
@@ -823,7 +830,6 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
             faces = [f for f in faces if not f.hide]
 
         bpy.ops.mesh.reveal()  
-
 
         island_colors = {} # Island face count : Random color pairs
 
