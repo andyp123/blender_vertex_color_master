@@ -481,13 +481,16 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
     mesh.update()
 
 
-def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, mask='NONE'):
+def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, mask='NONE'):
     if mask == 'FACE':
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
                 c = Color(vcol.data[loop_index].color)
-                c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                if colorize:
+                    c.h = fmod(0.5 + h_offset, 1.0)
+                else:
+                    c.h = fmod(1.0 + c.h + h_offset, 1.0)
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
                 vcol.data[loop_index].color = c
@@ -498,7 +501,10 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, mask='NONE'):
         for loop_index, loop in enumerate(mesh.loops):
             if not vertex_mask or verts[loop.vertex_index].select:
                 c = Color(vcol.data[loop_index].color)
-                c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                if colorize:
+                    c.h = fmod(0.5 + h_offset, 1.0)
+                else:
+                    c.h = fmod(1.0 + c.h + h_offset, 1.0)
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
                 vcol.data[loop_index].color = c
@@ -923,6 +929,12 @@ class VertexColorMaster_AdjustHSV(bpy.types.Operator):
     bl_label = 'VCM Adjust HSV'
     bl_options = {'REGISTER', 'UNDO'}
 
+    colorize = BoolProperty(
+        name="Colorize",
+        description="Colorize the mesh instead of adjusting hue.",
+        default=False
+    )
+
     hue_adjust = FloatProperty(
         name="Hue",
         description="Hue adjustment.",
@@ -956,7 +968,7 @@ class VertexColorMaster_AdjustHSV(bpy.types.Operator):
             self.report({'ERROR'}, "Can't modify HSV when no vertex color data exists.")
             return {'FINISHED'}
 
-        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, settings.mask_mode)
+        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, self.colorize, settings.mask_mode)
 
         return {'FINISHED'}
 
