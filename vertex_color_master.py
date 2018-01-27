@@ -28,16 +28,24 @@
 # + Add function to bake curvature...
 
 import bpy
+import bmesh # for random color to mesh islands
+import random # for random color to mesh islands
+import copy # for copying data structures
 from math import fmod
 from bpy.props import *
-from mathutils import Color
+from mathutils import Color, Vector, Matrix, Quaternion
+
+# for gradient tool
+from bpy_extras import view3d_utils
+import bgl
+
 
 bl_info = {
     "name": "Vertex Color Master",
-    "author": "Andrew Palmer",
-    "version": (0, 65),
+    "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
+    "version": (0, 70),
     "blender": (2, 79, 0),
-    "location": "Vertex Paint | View3D > Tools > Vertex Color Master",
+    "location": "Vertex Paint | View3D > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
     "category": "Paint",
     "wiki_url": "https://github.com/andyp123/blender_vertex_color_master",
@@ -73,6 +81,9 @@ def channel_items(self, context):
 
     return items
 
+hsv_items = (('H', "H", ""),
+             ('S', "S", ""),
+             ('V', "V", ""))
 
 brush_blend_mode_items = (('MIX', "Mix", ""),
                           ('ADD', "Add", ""),
@@ -470,6 +481,37 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
     mesh.update()
 
 
+def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, mask='NONE'):
+    if mask == 'FACE':
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = Color(vcol.data[loop_index].color)
+                if colorize:
+                    c.h = fmod(0.5 + h_offset, 1.0)
+                else:
+                    c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                c.s = max(0.0, min(c.s + s_offset, 1.0))
+                c.v = max(0.0, min(c.v + v_offset, 1.0))
+                vcol.data[loop_index].color = c
+    else:
+        vertex_mask = True if mask == 'VERTEX' else False
+        verts = mesh.vertices
+
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = Color(vcol.data[loop_index].color)
+                if colorize:
+                    c.h = fmod(0.5 + h_offset, 1.0)
+                else:
+                    c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                c.s = max(0.0, min(c.s + s_offset, 1.0))
+                c.v = max(0.0, min(c.v + v_offset, 1.0))
+                vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
 def get_layer_info(context):
     settings = context.scene.vertex_color_master_settings
 
@@ -561,6 +603,375 @@ def get_validated_input(context, get_src, get_dst):
 ###############################################################################
 # MAIN OPERATOR CLASSES
 ###############################################################################
+
+# For ModalGradient tool by Bartosz Styperek
+def draw_line(self, context):
+    # font_id = 0  # XXX, need to find out how best to get this.
+    # draw some text
+    # blf.position(font_id, 15, 30, 0)
+    # blf.size(font_id, 20, 72)
+    # blf.draw(font_id, "Pos " + str(self.endPoint.x) + " " + str(self.endPoint.y))
+
+    # 50% alpha, 2 pixel width line
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(0.0, 0.0, 0.0, 0.5)
+    bgl.glLineWidth(2)
+
+    bgl.glBegin(bgl.GL_LINE_STRIP)
+    bgl.glVertex2i(int(self.startPoint.x), int(self.startPoint.y))
+    bgl.glVertex2i(int(self.endPoint.x), int(self.endPoint.y))
+    bgl.glEnd()
+
+    # restore opengl defaults
+    bgl.glLineWidth(1)
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+
+
+def draw_pixels(self, context):
+    bgl.glEnable(bgl.GL_BLEND)
+
+    bgl.glColor3f(1, 0, 0)
+    for point in self.debugPixels:
+        bgl.glPointSize(10)
+        bgl.glBegin(bgl.GL_POINTS)
+        bgl.glVertex3f(point[0], point[1], 0)
+        bgl.glEnd()
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glPointSize(1)
+
+    bgl.glColor3f(0, 1, 0)
+    bgl.glPointSize(10)
+    bgl.glBegin(bgl.GL_POINTS)
+    bgl.glVertex3f(self.transStart.x, self.transStart.y, 0)
+    bgl.glVertex3f(self.transEnd.x, self.transEnd.y, 0)
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glPointSize(1)
+    # restore  defaults
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glColor3f(0.0, 0.0, 0.0)
+
+
+# This function from a script by Bartosz Styperek
+class VertexColorMaster_LinearGradient(bpy.types.Operator):
+    """Draw a line with the mouse to paint a vertex color gradient."""
+    bl_idname = "vertexcolormaster.linear_gradient"
+    bl_label = "VCM Linear Gradient Tool"
+    bl_description = "Paint linear vertex gradient."
+    bl_options = {"REGISTER", "UNDO"}
+
+    _handle = None
+    _handlePixelsDraw = None
+    startPoint = None
+    endPoint = None
+    LMB_Clicked = False
+    Shift_Clicked = False
+
+    greyscale = BoolProperty(
+        name="Greyscale",
+        default=True,
+        description="Use a simple black to white gradient."
+        )
+
+    start_color = FloatVectorProperty(
+        name="Start Color",
+        subtype='COLOR',
+        default=[0.0,0.0,0.0],
+        description="Start color of the gradient."
+    )
+
+    end_color = FloatVectorProperty(
+        name="End Color",
+        subtype='COLOR',
+        default=[1.0,1.0,1.0],
+        description="End color of the gradient."
+    )
+
+    def paintVerts(self, context):
+        settings = context.scene.vertex_color_master_settings
+
+        region = context.region
+        rv3d = context.region_data
+
+        obj = context.active_object
+        mesh = obj.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        color_size = len(vcol.data[0].color)
+
+        bm = bmesh.new()  # create an empty BMesh
+        bm.from_mesh(mesh)  # fill it in from a Mesh
+        bm.verts.ensure_lookup_table()
+
+        # List of structures containing 3d vertex and project 2d position of vertex
+        vertex_data = None
+        if settings.mask_mode != 'NONE': # Face masking not currently supported here
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
+        else:
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
+
+        color_layer = bm.loops.layers.color.active
+
+        downVec = Vector((0,-1,0))
+        drawnVec = Vector((self.endPoint.x-self.startPoint.x ,self.endPoint.y-self.startPoint.y, 0)).normalized()
+        rotQuat = drawnVec.rotation_difference(downVec)
+        translationMatrix = Matrix.Translation(Vector((-self.startPoint.x, -self.startPoint.y, 0)))
+        transInv = translationMatrix.inverted()
+        rotMatrix = rotQuat.to_matrix().to_4x4()
+        combinedMat = transInv * rotMatrix * translationMatrix
+
+        transStart = combinedMat * self.startPoint.to_4d() #transform drawn line : rotate it to align to horizontal line
+        transEnd = combinedMat * self.endPoint.to_4d()
+        minY = transStart.y
+        maxY = transEnd.y
+        heightTrans = maxY - minY  #get the height of transformed vector
+
+        # Calculate hue, saturation and value shift for blending
+        c1_hue = self.start_color.h
+        c2_hue = self.end_color.h
+        hue_separation = c2_hue - c1_hue if abs(c2_hue - c1_hue) < abs(c1_hue - c2_hue) else c1_hue - c2_hue
+        c1_sat = self.start_color.s
+        sat_separation = self.end_color.s - c1_sat
+        c1_val = self.start_color.v
+        val_separation = self.end_color.v - c1_val
+
+        # Create a template color of the correct size
+        base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
+
+        for data in vertex_data:
+            vertex = data[0]
+            vertCo4d = Vector((data[1].x, data[1].y, 0))
+            transVec = combinedMat * vertCo4d
+
+            t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            color = copy.copy(base_color)
+            if self.greyscale:
+                color[0:3] = t,t,t
+            else:
+                # Hue wraps, and fmod doesn't work with negative values
+                color.h = fmod(1.0 + (c1_hue + hue_separation * t), 1.0) 
+                color.s = c1_sat + sat_separation * t
+                color.v = c1_val + val_separation * t
+
+            for loop in vertex.link_loops:
+                loop[color_layer] = color
+
+        bm.to_mesh(mesh)
+        bm.free()
+        bpy.ops.object.mode_set(mode='VERTEX_PAINT')
+
+
+    def axis_snap(self, start, end, delta):
+        if start.x - delta < end.x < start.x + delta:
+            return Vector((start.x, end.y))
+        if start.y - delta < end.y < start.y + delta:
+            return Vector((end.x, start.y))
+        return end
+
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+        delta = 20
+        if event.type == 'MOUSEMOVE' and self.LMB_Clicked == True:
+            self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
+            if event.shift:
+                self.endPoint = self.axis_snap(self.startPoint, self.endPoint, delta)
+
+        elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == True:  # finish drawing box, and calculate uv Transformation
+            self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
+            if event.shift:
+                self.endPoint = self.axis_snap(self.startPoint, self.endPoint, delta)
+            self.LMB_Clicked = False
+            # if self._handle:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            self.paintVerts(context)
+            return {'FINISHED'}
+
+        elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == False:
+            self.startPoint = Vector((event.mouse_region_x, event.mouse_region_y))
+            self.endPoint = self.startPoint # To prevent drawing line to random place
+            args = (self, context)
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
+            self.LMB_Clicked = True
+        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            # allow navigation
+            return {'PASS_THROUGH'}
+
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            # if self._handlePixelsDraw:
+            #     bpy.types.SpaceView3D.draw_handler_remove(self._handlePixelsDraw, 'WINDOW')
+            self.report({'INFO'}, 'CANCELLED')
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+
+    def invoke(self, context, event):
+        if context.area.type == 'VIEW_3D':
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "View3D not found, cannot run operator")
+            return {'CANCELLED'}
+
+
+# Partly based on code by Bartosz Styperek
+class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
+    """Assign random colors to separate mesh islands"""
+    bl_idname = 'vertexcolormaster.randomise_mesh_island_colors'
+    bl_label = 'VCM Randomise Mesh Island Colors'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    randomised_channels = EnumProperty(
+        name="Randomize HSV",
+        options={'ENUM_FLAG'},
+        items=hsv_items,
+        default={'H'},
+        description="Enable/Disable HSV channels for randomization."
+    )
+
+    order_based = BoolProperty(
+        name="Order Based",
+        description="The colors assigned will be based on the number of islands. Not truly random, but maximum color separation.",
+        default=False
+    )
+
+    merge_similar = BoolProperty(
+        name="Merge Similar",
+        description="Use the same color for similar parts of the mesh (determined by equal face count).",
+        default=False
+    )
+
+    selected_only = BoolProperty(
+        name="Selected Only",
+        description="Only assign colors to selected islands.",
+        default=False
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        color_size = len(vcol.data[0].color)
+
+        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+
+        bm = bmesh.from_edit_mesh(mesh)
+        bm.faces.ensure_lookup_table()
+        color_layer = bm.loops.layers.color.active
+
+        # Find all islands in the mesh
+        mesh_islands = []
+        selected_faces = ([f for f in bm.faces if f.select])
+        faces = selected_faces if self.selected_only else bm.faces
+
+        bpy.ops.mesh.select_all(action="DESELECT")
+
+        while len(faces) > 0:
+            # Select linked faces to find island
+            faces[0].select_set(True)
+            bpy.ops.mesh.select_linked()
+            mesh_islands.append([f for f in faces if f.select])
+            # Hide the island and update faces
+            bpy.ops.mesh.hide(unselected=False)
+            faces = [f for f in faces if not f.hide]
+
+        bpy.ops.mesh.reveal()  
+
+        island_colors = {} # Island face count : Random color pairs
+
+        # HSV 0, 1, 1. Add an alpha channel if supported
+        base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
+
+        # Used for setting hue with order based color assignment
+        hue_separation = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
+
+        for index, island in enumerate(mesh_islands):
+            color = copy.copy(base_color)
+
+            if self.merge_similar:
+                face_count = len(island)
+                if face_count in island_colors.keys():
+                    color = island_colors[face_count]
+                else:
+                    color.h = random.random() if 'H' in self.randomised_channels else 0.0
+                    color.s = random.random() if 'S' in self.randomised_channels else 1.0
+                    color.v = random.random() if 'V' in self.randomised_channels else 1.0
+                    island_colors[face_count] = color
+            else:
+                if self.order_based:
+                    color.h = index * hue_separation
+                else: 
+                    color.h = random.random() if 'H' in self.randomised_channels else 0.0
+                color.s = random.random() if 'S' in self.randomised_channels else 1.0
+                color.v = random.random() if 'V' in self.randomised_channels else 1.0
+
+            for face in island:
+                for loop in face.loops:
+                    loop[color_layer] = color
+
+        # Restore selection
+        for f in selected_faces:
+            f.select = True
+
+        bm.free()
+        bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
+
+        return {'FINISHED'}
+
+
+class VertexColorMaster_AdjustHSV(bpy.types.Operator):
+    """Adjust the Hue, Saturation and Value of the the active vertex colors"""
+    bl_idname = 'vertexcolormaster.adjust_hsv'
+    bl_label = 'VCM Adjust HSV'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    colorize = BoolProperty(
+        name="Colorize",
+        description="Colorize the mesh instead of adjusting hue.",
+        default=False
+    )
+
+    hue_adjust = FloatProperty(
+        name="Hue",
+        description="Hue adjustment.",
+        default=0.0,
+        min=-0.5,
+        max=0.5
+    )
+
+    sat_adjust = FloatProperty(
+        name="Saturation",
+        description="Saturation adjustment.",
+        default=0.0,
+        min=-1.0,
+        max=1.0
+    )
+
+    val_adjust = FloatProperty(
+        name="Value",
+        description="Value adjustment.",
+        default=0.0,
+        min=-1.0,
+        max=1.0
+    )
+
+    def execute(self, context):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active
+
+        if vcol is None:
+            self.report({'ERROR'}, "Can't modify HSV when no vertex color data exists.")
+            return {'FINISHED'}
+
+        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, self.colorize, settings.mask_mode)
+
+        return {'FINISHED'}
+
 
 class VertexColorMaster_ColorToUVs(bpy.types.Operator):
     """Copy vertex color channel to UVs"""
@@ -1246,7 +1657,7 @@ class VertexColorMaster(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_label = 'Vertex Color Master'
-    bl_category = 'Tools'
+    bl_category =  'Vertex Color Master' # 'Tools'
     bl_context = 'vertexpaint'
 
     def draw(self, context):
@@ -1271,6 +1682,8 @@ class VertexColorMaster(bpy.types.Panel):
         self.draw_active_channel_operations(context, layout, obj, settings)
         layout.separator()
         self.draw_src_dst_operations(context, layout, obj, settings)
+        layout.separator()
+        self.draw_misc_operations(context, layout, obj, settings)
 
 
     def draw_isolate_mode_layout(self, context, obj, vcol_id, channel_id, settings):
@@ -1289,6 +1702,8 @@ class VertexColorMaster(bpy.types.Panel):
         self.draw_brush_settings(context, layout, obj, settings, mode='GRAYSCALE')
         layout.separator()
         self.draw_active_channel_operations(context, layout, obj, settings, mode='ISOLATE')
+        layout.separator()
+        self.draw_misc_operations(context, layout, obj, settings, mode='ISOLATE')
 
 
     def draw_brush_settings(self, context, layout, obj, settings, mode='COLOR'):
@@ -1424,6 +1839,20 @@ class VertexColorMaster(bpy.types.Panel):
             row = layout.row(align=True)
             row.label("Src > Dst is unsupported")
 
+    def draw_misc_operations(self, context, layout, obj, settings, mode='STANDARD'):
+        col = layout.column(align=True)
+        row = col.row()
+        row.label('Misc Operations')
+
+        col = layout.column(align=True)
+        if mode == 'STANDARD':
+            row = col.row(align=True)
+            row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
+            row = col.row(align=True)
+            row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
+        row = col.row(align=True)
+        row.operator('vertexcolormaster.linear_gradient', "Gradient Tool")
+        
 
 ###############################################################################
 # OPERATOR REGISTRATION
@@ -1450,7 +1879,9 @@ def register():
     bpy.utils.register_class(VertexColorMaster_ColorToUVs)
     bpy.utils.register_class(VertexColorMaster_IsolateChannel)
     bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
-
+    bpy.utils.register_class(VertexColorMaster_RandomiseMeshIslandColors)
+    bpy.utils.register_class(VertexColorMaster_LinearGradient)
+    bpy.utils.register_class(VertexColorMaster_AdjustHSV)
 
 def unregister():
     bpy.utils.unregister_class(VertexColorMasterProperties)
@@ -1472,6 +1903,9 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_ColorToUVs)
     bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
     bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
+    bpy.utils.unregister_class(VertexColorMaster_RandomiseMeshIslandColors)
+    bpy.utils.unregister_class(VertexColorMaster_LinearGradient)
+    bpy.utils.unregister_class(VertexColorMaster_AdjustHSV)
 
 
 # allows running addon from text editor
