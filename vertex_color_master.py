@@ -1702,6 +1702,8 @@ class VertexColorMaster(bpy.types.Panel):
         self.draw_brush_settings(context, layout, obj, settings, mode='GRAYSCALE')
         layout.separator()
         self.draw_active_channel_operations(context, layout, obj, settings, mode='ISOLATE')
+        layout.separator()
+        self.draw_misc_operations(context, layout, obj, settings, mode='ISOLATE')
 
 
     def draw_brush_settings(self, context, layout, obj, settings, mode='COLOR'):
@@ -1837,19 +1839,20 @@ class VertexColorMaster(bpy.types.Panel):
             row = layout.row(align=True)
             row.label("Src > Dst is unsupported")
 
-    def draw_misc_operations(self, context, layout, obj, settings):
+    def draw_misc_operations(self, context, layout, obj, settings, mode='STANDARD'):
         col = layout.column(align=True)
         row = col.row()
         row.label('Misc Operations')
 
         col = layout.column(align=True)
-        row = col.row(align=True)
-        row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
-        row = col.row(align=True)
-        row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
+        if mode == 'STANDARD':
+            row = col.row(align=True)
+            row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
+            row = col.row(align=True)
+            row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
         row = col.row(align=True)
         row.operator('vertexcolormaster.linear_gradient', "Gradient Tool")
-
+        
 
 ###############################################################################
 # OPERATOR REGISTRATION
