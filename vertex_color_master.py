@@ -312,9 +312,9 @@ def color_to_weights(obj, src_vcol, src_channel_idx, dst_vgroup_idx):
 
 
 # no channel checking. Designed to more efficiently apply a color to mesh
-def quick_fill_selected(mesh, vcol, color, mask='NONE'):
+def quick_fill_selected(mesh, vcol, color):
     vcol_data = vcol.data
-    if mask == 'FACE':
+    if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
@@ -323,7 +323,7 @@ def quick_fill_selected(mesh, vcol, color, mask='NONE'):
                 c[1] = color[1]
                 c[2] = color[2]
                 vcol_data[loop_index].color = c
-    elif mask == 'VERTEX':
+    elif mesh.use_paint_mask_vertex:
         verts = mesh.vertices
         for loop_index, loop in enumerate(mesh.loops):
             if verts[loop.vertex_index].select:
@@ -341,8 +341,8 @@ def quick_fill_selected(mesh, vcol, color, mask='NONE'):
             vcol_data[loop_index].color = c
 
 
-def fill_selected(mesh, vcol, color, active_channels, mask='NONE'):
-    if mask == 'FACE':
+def fill_selected(mesh, vcol, color, active_channels):
+    if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
@@ -357,7 +357,7 @@ def fill_selected(mesh, vcol, color, active_channels, mask='NONE'):
                     c[3] = color[3]
                 vcol.data[loop_index].color = c
     else:
-        vertex_mask = True if mask == 'VERTEX' else False
+        vertex_mask = True if mesh.use_paint_mask_vertex else False
         verts = mesh.vertices
 
         for loop_index, loop in enumerate(mesh.loops):
@@ -376,8 +376,8 @@ def fill_selected(mesh, vcol, color, active_channels, mask='NONE'):
     mesh.update()
 
 
-def invert_selected(mesh, vcol, active_channels, mask='NONE'):
-    if mask == 'FACE':
+def invert_selected(mesh, vcol, active_channels):
+    if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
@@ -392,7 +392,7 @@ def invert_selected(mesh, vcol, active_channels, mask='NONE'):
                     c[3] = 1 - c[3]
                 vcol.data[loop_index].color = c
     else:
-        vertex_mask = True if mask == 'VERTEX' else False
+        vertex_mask = True if mesh.use_paint_mask_vertex else False
         verts = mesh.vertices
 
         for loop_index, loop in enumerate(mesh.loops):
@@ -411,8 +411,8 @@ def invert_selected(mesh, vcol, active_channels, mask='NONE'):
     mesh.update()
 
 
-def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
-    if mask == 'FACE':
+def posterize_selected(mesh, vcol, steps, active_channels):
+    if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
@@ -427,7 +427,7 @@ def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
                     c[3] = posterize(c[3], steps)
                 vcol.data[loop_index].color = c
     else:
-        vertex_mask = True if mask == 'VERTEX' else False
+        vertex_mask = True if mesh.use_paint_mask_vertex else False
         verts = mesh.vertices
 
         for loop_index, loop in enumerate(mesh.loops):
@@ -446,8 +446,8 @@ def posterize_selected(mesh, vcol, steps, active_channels, mask='NONE'):
     mesh.update()
 
 
-def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NONE'):
-    if mask == 'FACE':
+def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels):
+    if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
@@ -462,7 +462,7 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
                     c[3] = remap(c[3], min0, max0, min1, max1)
                 vcol.data[loop_index].color = c
     else:
-        vertex_mask = True if mask == 'VERTEX' else False
+        vertex_mask = True if mesh.use_paint_mask_vertex else False
         verts = mesh.vertices
 
         for loop_index, loop in enumerate(mesh.loops):
@@ -481,33 +481,39 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels, mask='NO
     mesh.update()
 
 
-def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, mask='NONE'):
-    if mask == 'FACE':
+def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
+    if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
-                c = Color(vcol.data[loop_index].color)
+                c = Color(vcol.data[loop_index].color[:3])
                 if colorize:
                     c.h = fmod(0.5 + h_offset, 1.0)
                 else:
                     c.h = fmod(1.0 + c.h + h_offset, 1.0)
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
-                vcol.data[loop_index].color = c
+                if bpy.app.version > (2, 79, 0):
+                    vcol.data[loop_index].color = [c[0], c[1], c[2], 1]
+                else:
+                    vcol.data[loop_index].color = c
     else:
-        vertex_mask = True if mask == 'VERTEX' else False
+        vertex_mask = True if mesh.use_paint_mask_vertex else False
         verts = mesh.vertices
 
         for loop_index, loop in enumerate(mesh.loops):
             if not vertex_mask or verts[loop.vertex_index].select:
-                c = Color(vcol.data[loop_index].color)
+                c = Color(vcol.data[loop_index].color[:3])
                 if colorize:
                     c.h = fmod(0.5 + h_offset, 1.0)
                 else:
                     c.h = fmod(1.0 + c.h + h_offset, 1.0)
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
-                vcol.data[loop_index].color = c
+                if bpy.app.version > (2, 79, 0):
+                    vcol.data[loop_index].color = [c[0], c[1], c[2], 1]
+                else:
+                    vcol.data[loop_index].color = c
 
     mesh.update()
 
@@ -696,16 +702,14 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
 
         obj = context.active_object
         mesh = obj.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
-        color_size = len(vcol.data[0].color)
 
         bm = bmesh.new()  # create an empty BMesh
         bm.from_mesh(mesh)  # fill it in from a Mesh
         bm.verts.ensure_lookup_table()
 
         # List of structures containing 3d vertex and project 2d position of vertex
-        vertex_data = None
-        if settings.mask_mode != 'NONE': # Face masking not currently supported here
+        vertex_data = None # will contain vert, and vert coordinates in 2d view space
+        if mesh.use_paint_mask_vertex: # Face masking not currently supported here
             vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
         else:
             vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
@@ -736,7 +740,7 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
         val_separation = self.end_color.v - c1_val
 
         # Create a template color of the correct size
-        base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
+        base_color = Color((1, 0, 0))
 
         for data in vertex_data:
             vertex = data[0]
@@ -753,8 +757,16 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
                 color.s = c1_sat + sat_separation * t
                 color.v = c1_val + val_separation * t
 
-            for loop in vertex.link_loops:
-                loop[color_layer] = color
+            if mesh.use_paint_mask: #masking by face
+                faceLoops = [loop for loop in vertex.link_loops if loop.face.select] #get only loops that belong to selected faces
+            else: #masking by verts or no masking at all
+                faceLoops = [loop for loop in vertex.link_loops] #get remaining vet loops
+
+            for loop in faceLoops:
+                if bpy.app.version > (2, 79, 0):
+                    loop[color_layer] = [color[0], color[1], color[2], 1]
+                else:
+                    loop[color_layer] = color
 
         bm.to_mesh(mesh)
         bm.free()
@@ -841,11 +853,11 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         default=False
     )
 
-    selected_only = BoolProperty(
-        name="Selected Only",
-        description="Only assign colors to selected islands.",
-        default=False
-    )
+    Seed = IntProperty(
+        name="Noise Seed",
+        description="Noise Seed",
+        default=1,
+        min=1, max=1000)
 
     @classmethod
     def poll(cls, context):
@@ -854,8 +866,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
     def execute(self, context):
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
-        color_size = len(vcol.data[0].color)
+        random.seed(self.Seed)
 
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
 
@@ -866,7 +877,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         # Find all islands in the mesh
         mesh_islands = []
         selected_faces = ([f for f in bm.faces if f.select])
-        faces = selected_faces if self.selected_only else bm.faces
+        faces = selected_faces if mesh.use_paint_mask or mesh.use_paint_mask_vertex else bm.faces
 
         bpy.ops.mesh.select_all(action="DESELECT")
 
@@ -884,10 +895,10 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         island_colors = {} # Island face count : Random color pairs
 
         # HSV 0, 1, 1. Add an alpha channel if supported
-        base_color = Color((1, 0, 0, 1)) if color_size > 3 else Color((1, 0, 0))
+        base_color =  Color((1, 0, 0))
 
         # Used for setting hue with order based color assignment
-        hue_separation = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
+        separationDiff = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
 
         for index, island in enumerate(mesh_islands):
             color = copy.copy(base_color)
@@ -903,15 +914,20 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
                     island_colors[face_count] = color
             else:
                 if self.order_based:
-                    color.h = index * hue_separation
-                else: 
+                    color.h = index * separationDiff if 'H' in self.randomised_channels else 0.0
+                    color.s = index * separationDiff if 'S' in self.randomised_channels else 1.0
+                    color.v = index * separationDiff if 'V' in self.randomised_channels else 1.0
+                else:
                     color.h = random.random() if 'H' in self.randomised_channels else 0.0
-                color.s = random.random() if 'S' in self.randomised_channels else 1.0
-                color.v = random.random() if 'V' in self.randomised_channels else 1.0
+                    color.s = random.random() if 'S' in self.randomised_channels else 1.0
+                    color.v = random.random() if 'V' in self.randomised_channels else 1.0
 
             for face in island:
                 for loop in face.loops:
-                    loop[color_layer] = color
+                    if bpy.app.version > (2, 79, 0):
+                        loop[color_layer] = [color[0], color[1], color[2], 1]
+                    else:
+                        loop[color_layer] = color
 
         # Restore selection
         for f in selected_faces:
@@ -968,7 +984,7 @@ class VertexColorMaster_AdjustHSV(bpy.types.Operator):
             self.report({'ERROR'}, "Can't modify HSV when no vertex color data exists.")
             return {'FINISHED'}
 
-        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, self.colorize, settings.mask_mode)
+        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, self.colorize)
 
         return {'FINISHED'}
 
@@ -1229,10 +1245,10 @@ class VertexColorMaster_Fill(bpy.types.Operator):
         if self.fill_with_color or isolate_mode:
             active_channels = ['R', 'G', 'B']
             color = [self.value] * 4 if isolate_mode else self.fill_color
-            fill_selected(mesh, vcol, color, active_channels, settings.mask_mode)
+            fill_selected(mesh, vcol, color, active_channels)
         else:
             color = [self.value] * 4
-            fill_selected(mesh, vcol, color, settings.active_channels, settings.mask_mode)
+            fill_selected(mesh, vcol, color, settings.active_channels)
 
         return {'FINISHED'}
 
@@ -1266,7 +1282,7 @@ class VertexColorMaster_Invert(bpy.types.Operator):
         vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
         active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
 
-        invert_selected(mesh, vcol, active_channels, settings.mask_mode)
+        invert_selected(mesh, vcol, active_channels)
 
         return {'FINISHED'}
 
@@ -1300,7 +1316,7 @@ class VertexColorMaster_Posterize(bpy.types.Operator):
         vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
         active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
 
-        posterize_selected(mesh, vcol, steps, active_channels, settings.mask_mode)
+        posterize_selected(mesh, vcol, steps, active_channels)
 
         return {'FINISHED'}
 
@@ -1347,7 +1363,7 @@ class VertexColorMaster_Remap(bpy.types.Operator):
         vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
         active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
 
-        remap_selected(mesh, vcol, self.min0, self.max0, self.min1, self.max1, active_channels, settings.mask_mode)
+        remap_selected(mesh, vcol, self.min0, self.max0, self.min1, self.max1, active_channels)
 
         return {'FINISHED'}
 
@@ -1412,7 +1428,7 @@ class VertexColorMaster_QuickFill(bpy.types.Operator):
         mesh = context.active_object.data
         vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
 
-        quick_fill_selected(mesh, vcol, self.fill_color, settings.mask_mode)
+        quick_fill_selected(mesh, vcol, self.fill_color)
 
         return {'FINISHED'}
 
@@ -1595,11 +1611,6 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         update=update_brush_value_isolate
     )
 
-    mask_mode = EnumProperty(
-        name="Mask Mode",
-        items=(('NONE', "None", ''), ('FACE', "Face", ''), ('VERTEX', "Vertex", '')),
-        description="Mask based on currently selected mesh elements."
-    )
 
     def vcol_layer_items(self, context):
         obj = context.active_object
@@ -1758,10 +1769,6 @@ class VertexColorMaster(bpy.types.Panel):
             row.operator('vertexcolormaster.isolate_channel', "Isolate Active Channel").src_channel_id = iso_channel_id
             row.enabled = can_isolate
 
-        row = col.row()
-        row.label('Selection Mask Mode')
-        row = col.row()
-        row.prop(settings, 'mask_mode', expand=True)
 
         col = layout.column(align=True)
         row = col.row(align=True)
