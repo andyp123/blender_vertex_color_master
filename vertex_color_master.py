@@ -695,23 +695,20 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
         maxY = transEnd.y
         heightTrans = maxY - minY  # Get the height of transformed vector
 
-        # TODO: This code works, but because the redo panel doesn't work on
-        # modal operators, the user can't change the default settings
-        # Implement foreground/background color support.
-        greyscale = True if start_color.h == 0.0 and end_color.h == 0.0 else False
-        if not greyscale:
-            # Calculate hue, saturation and value shift for blending
-            c1_hue = start_color.h
-            c2_hue = end_color.h
-            hue_separation = c2_hue - c1_hue if abs(c2_hue - c1_hue) < abs(c1_hue - c2_hue) else c1_hue - c2_hue
-            c1_sat = start_color.s
-            sat_separation = end_color.s - c1_sat
-            c1_val = start_color.v
-            val_separation = end_color.v - c1_val
+        # Calculate hue, saturation and value shift for blending
+        c1_hue = start_color.h
+        c2_hue = end_color.h
+        hue_separation = c2_hue - c1_hue
+        if hue_separation > 0.5:
+            hue_separation = hue_separation - 1
+        elif hue_separation < -0.5:
+            hue_separation = hue_separation + 1
+        c1_sat = start_color.s
+        sat_separation = end_color.s - c1_sat
+        c1_val = start_color.v
+        val_separation = end_color.v - c1_val
 
-        # Create a template color of the correct size
         color_layer = bm.loops.layers.color.active
-        base_color = Color((1, 0, 0, 1)) if bpy.app.version > (2, 79, 0) else Color((1, 0, 0))
 
         for data in vertex_data:
             vertex = data[0]
@@ -719,14 +716,11 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
             transVec = combinedMat * vertCo4d
 
             t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
-            color = copy.copy(base_color)
-            if greyscale:
-                color[0:3] = t,t,t
-            else:
-                # Hue wraps, and fmod doesn't work with negative values
-                color.h = fmod(1.0 + (c1_hue + hue_separation * t), 1.0) 
-                color.s = c1_sat + sat_separation * t
-                color.v = c1_val + val_separation * t
+            color = Color((1, 0, 0))
+            # Hue wraps, and fmod doesn't work with negative values
+            color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
+            color.s = c1_sat + sat_separation * t
+            color.v = c1_val + val_separation * t
 
             if mesh.use_paint_mask: # Masking by face
                 face_loops = [loop for loop in vertex.link_loops if loop.face.select] # Get only loops that belong to selected faces
@@ -734,7 +728,9 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
                 face_loops = [loop for loop in vertex.link_loops] # Get remaining vert loops
 
             for loop in face_loops:
-                loop[color_layer] = color
+                new_color = loop[color_layer]
+                new_color[:3] = color
+                loop[color_layer] = new_color
 
         bm.to_mesh(mesh)
         bm.free()
@@ -779,8 +775,14 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
                 bpy.types.SpaceView3D.draw_handler_remove(self._line_draw_handle, 'WINDOW')
                 self._line_draw_handle = None
 
+                # Use color gradient where supported (unless we are in isolate mode)
                 start_color = Color((0, 0, 0))
                 end_color = Color((1, 1, 1))
+                isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+                if bpy.app.version > (2, 79, 0) and isolate is None:
+                    start_color = bpy.data.brushes['Draw'].color
+                    end_color = bpy.data.brushes['Draw'].secondary_color
+
                 self.paintVerts(context, self.start_point, self.end_point, start_color, end_color)
                 return {'FINISHED'}
 
