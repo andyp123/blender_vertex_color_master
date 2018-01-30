@@ -482,10 +482,10 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
                     c.h = fmod(1.0 + c.h + h_offset, 1.0)
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
-                if bpy.app.version > (2, 79, 0):
-                    vcol.data[loop_index].color = [c[0], c[1], c[2], 1]
-                else:
-                    vcol.data[loop_index].color = c
+
+                new_color = vcol.data[loop_index].color
+                new_color[:3] = c
+                vcol.data[loop_index].color = new_color
     else:
         vertex_mask = True if mesh.use_paint_mask_vertex else False
         verts = mesh.vertices
@@ -499,10 +499,10 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
                     c.h = fmod(1.0 + c.h + h_offset, 1.0)
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
-                if bpy.app.version > (2, 79, 0):
-                    vcol.data[loop_index].color = [c[0], c[1], c[2], 1]
-                else:
-                    vcol.data[loop_index].color = c
+
+                new_color = vcol.data[loop_index].color
+                new_color[:3] = c
+                vcol.data[loop_index].color = new_color
 
     mesh.update()
 
@@ -865,14 +865,11 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
         island_colors = {} # Island face count : Random color pairs
 
-        # HSV 0, 1, 1. Add an alpha channel if supported
-        base_color = Color((1, 0, 0, 1)) if bpy.app.version > (2, 79, 0) else Color((1, 0, 0))
-
         # Used for setting hue with order based color assignment
         separationDiff = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
 
         for index, island in enumerate(mesh_islands):
-            color = copy.copy(base_color)
+            color = Color((1, 1, 1))
 
             if self.merge_similar:
                 face_count = len(island)
@@ -895,7 +892,9 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
             for face in island:
                 for loop in face.loops:
-                    loop[color_layer] = color
+                    new_color = loop[color_layer]
+                    new_color[:3] = color
+                    loop[color_layer] = new_color
 
         # Restore selection
         for f in selected_faces:
