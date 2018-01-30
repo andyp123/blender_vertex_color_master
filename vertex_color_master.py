@@ -18,12 +18,10 @@
 
 # TODO:
 # + break script into addon
-# + Move addon to own tab
 # + Clean up workflow for filling etc.
 # + Optimisations of channel masked functions / remove entirely (can isolate)
 # + Add more operator options to REDO panel
 # + Add shortcut to bake AO
-# + Add function to do quick gradient shading
 # + Add function to set UV shells to random colors
 # + Add function to bake curvature...
 
@@ -64,19 +62,10 @@ type_vgroup = 'VGROUP'
 type_uv = 'UV'
 valid_layer_types = [type_vcol, type_vgroup, type_uv]
 
-
 def channel_items(self, context):
-    color_size = 3
-
-    obj = context.active_object
-    if obj.type == 'MESH' and obj.data.vertex_colors is not None:
-        vcol = obj.data.vertex_colors.active
-        if len(vcol.data) > 0:
-            color_size = len(vcol.data[0].color)
-
     items = [(red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", "")]
 
-    if color_size > 3:
+    if bpy.app.version > (2, 79, 0):
         items.append((alpha_id, "A", ""))
 
     return items
@@ -616,7 +605,7 @@ def draw_line(self, context):
     # draw some text
     # blf.position(font_id, 15, 30, 0)
     # blf.size(font_id, 20, 72)
-    # blf.draw(font_id, "Pos " + str(self.endPoint.x) + " " + str(self.endPoint.y))
+    # blf.draw(font_id, "Pos " + str(self.end_point.x) + " " + str(self.end_point.y))
 
     # 50% alpha, 2 pixel width line
     bgl.glEnable(bgl.GL_BLEND)
@@ -624,8 +613,8 @@ def draw_line(self, context):
     bgl.glLineWidth(2)
 
     bgl.glBegin(bgl.GL_LINE_STRIP)
-    bgl.glVertex2i(int(self.startPoint.x), int(self.startPoint.y))
-    bgl.glVertex2i(int(self.endPoint.x), int(self.endPoint.y))
+    bgl.glVertex2i(int(self.start_point.x), int(self.start_point.y))
+    bgl.glVertex2i(int(self.end_point.x), int(self.end_point.y))
     bgl.glEnd()
 
     # restore opengl defaults
@@ -667,36 +656,12 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
     bl_description = "Paint linear vertex gradient."
     bl_options = {"REGISTER", "UNDO"}
 
-    _handle = None
-    _handlePixelsDraw = None
-    startPoint = None
-    endPoint = None
-    LMB_Clicked = False
-    Shift_Clicked = False
+    _line_draw_handle = None
 
-    greyscale = BoolProperty(
-        name="Greyscale",
-        default=True,
-        description="Use a simple black to white gradient."
-        )
+    start_point = None
+    end_point = None
 
-    start_color = FloatVectorProperty(
-        name="Start Color",
-        subtype='COLOR',
-        default=[0.0,0.0,0.0],
-        description="Start color of the gradient."
-    )
-
-    end_color = FloatVectorProperty(
-        name="End Color",
-        subtype='COLOR',
-        default=[1.0,1.0,1.0],
-        description="End color of the gradient."
-    )
-
-    def paintVerts(self, context):
-        settings = context.scene.vertex_color_master_settings
-
+    def paintVerts(self, context, start_point, end_point, start_color, end_color):
         region = context.region
         rv3d = context.region_data
 
@@ -708,39 +673,45 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
         bm.verts.ensure_lookup_table()
 
         # List of structures containing 3d vertex and project 2d position of vertex
-        vertex_data = None # will contain vert, and vert coordinates in 2d view space
-        if mesh.use_paint_mask_vertex: # Face masking not currently supported here
+        vertex_data = None # Will contain vert, and vert coordinates in 2d view space
+        if mesh.use_paint_mask_vertex: # Face masking not currently supported
             vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
         else:
             vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
 
-        color_layer = bm.loops.layers.color.active
+        # Vertex transformation math
+        down_vector = Vector((0, -1, 0))
+        direction_vector = Vector((end_point.x - start_point.x, end_point.y - start_point.y, 0)).normalized()
+        rotation = direction_vector.rotation_difference(down_vector)
 
-        downVec = Vector((0,-1,0))
-        drawnVec = Vector((self.endPoint.x-self.startPoint.x ,self.endPoint.y-self.startPoint.y, 0)).normalized()
-        rotQuat = drawnVec.rotation_difference(downVec)
-        translationMatrix = Matrix.Translation(Vector((-self.startPoint.x, -self.startPoint.y, 0)))
-        transInv = translationMatrix.inverted()
-        rotMatrix = rotQuat.to_matrix().to_4x4()
-        combinedMat = transInv * rotMatrix * translationMatrix
+        translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
+        inverse_translantion_matrix = translation_matrix.inverted()
+        rotation_matrix = rotation.to_matrix().to_4x4()
+        combinedMat = inverse_translantion_matrix * rotation_matrix * translation_matrix
 
-        transStart = combinedMat * self.startPoint.to_4d() #transform drawn line : rotate it to align to horizontal line
-        transEnd = combinedMat * self.endPoint.to_4d()
+        transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
+        transEnd = combinedMat * end_point.to_4d()
         minY = transStart.y
         maxY = transEnd.y
-        heightTrans = maxY - minY  #get the height of transformed vector
+        heightTrans = maxY - minY  # Get the height of transformed vector
 
-        # Calculate hue, saturation and value shift for blending
-        c1_hue = self.start_color.h
-        c2_hue = self.end_color.h
-        hue_separation = c2_hue - c1_hue if abs(c2_hue - c1_hue) < abs(c1_hue - c2_hue) else c1_hue - c2_hue
-        c1_sat = self.start_color.s
-        sat_separation = self.end_color.s - c1_sat
-        c1_val = self.start_color.v
-        val_separation = self.end_color.v - c1_val
+        # TODO: This code works, but because the redo panel doesn't work on
+        # modal operators, the user can't change the default settings
+        # Implement foreground/background color support.
+        greyscale = True if start_color.h == 0.0 and end_color.h == 0.0 else False
+        if not greyscale:
+            # Calculate hue, saturation and value shift for blending
+            c1_hue = start_color.h
+            c2_hue = end_color.h
+            hue_separation = c2_hue - c1_hue if abs(c2_hue - c1_hue) < abs(c1_hue - c2_hue) else c1_hue - c2_hue
+            c1_sat = start_color.s
+            sat_separation = end_color.s - c1_sat
+            c1_val = start_color.v
+            val_separation = end_color.v - c1_val
 
         # Create a template color of the correct size
-        base_color = Color((1, 0, 0))
+        color_layer = bm.loops.layers.color.active
+        base_color = Color((1, 0, 0, 1)) if bpy.app.version > (2, 79, 0) else Color((1, 0, 0))
 
         for data in vertex_data:
             vertex = data[0]
@@ -749,7 +720,7 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
 
             t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
             color = copy.copy(base_color)
-            if self.greyscale:
+            if greyscale:
                 color[0:3] = t,t,t
             else:
                 # Hue wraps, and fmod doesn't work with negative values
@@ -757,21 +728,17 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
                 color.s = c1_sat + sat_separation * t
                 color.v = c1_val + val_separation * t
 
-            if mesh.use_paint_mask: #masking by face
-                faceLoops = [loop for loop in vertex.link_loops if loop.face.select] #get only loops that belong to selected faces
-            else: #masking by verts or no masking at all
-                faceLoops = [loop for loop in vertex.link_loops] #get remaining vet loops
+            if mesh.use_paint_mask: # Masking by face
+                face_loops = [loop for loop in vertex.link_loops if loop.face.select] # Get only loops that belong to selected faces
+            else: # Masking by verts or no masking at all
+                face_loops = [loop for loop in vertex.link_loops] # Get remaining vert loops
 
-            for loop in faceLoops:
-                if bpy.app.version > (2, 79, 0):
-                    loop[color_layer] = [color[0], color[1], color[2], 1]
-                else:
-                    loop[color_layer] = color
+            for loop in face_loops:
+                loop[color_layer] = color
 
         bm.to_mesh(mesh)
         bm.free()
         bpy.ops.object.mode_set(mode='VERTEX_PAINT')
-
 
     def axis_snap(self, start, end, delta):
         if start.x - delta < end.x < start.x + delta:
@@ -780,40 +747,42 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
             return Vector((end.x, start.y))
         return end
 
-
     def modal(self, context, event):
         context.area.tag_redraw()
         delta = 20
-        if event.type == 'MOUSEMOVE' and self.LMB_Clicked == True:
-            self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
-            if event.shift:
-                self.endPoint = self.axis_snap(self.startPoint, self.endPoint, delta)
 
-        elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == True:  # finish drawing box, and calculate uv Transformation
-            self.endPoint = Vector((event.mouse_region_x, event.mouse_region_y))
-            if event.shift:
-                self.endPoint = self.axis_snap(self.startPoint, self.endPoint, delta)
-            self.LMB_Clicked = False
-            # if self._handle:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
-            self.paintVerts(context)
-            return {'FINISHED'}
+        # TODO: Display tool information in the bar at the bottom of the screen
+        # Find out how other operators do this.
 
-        elif event.type == 'LEFTMOUSE' and self.LMB_Clicked == False:
-            self.startPoint = Vector((event.mouse_region_x, event.mouse_region_y))
-            self.endPoint = self.startPoint # To prevent drawing line to random place
-            args = (self, context)
-            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
-            self.LMB_Clicked = True
-        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-            # allow navigation
-            return {'PASS_THROUGH'}
-
-        elif event.type in {'RIGHTMOUSE', 'ESC'}:
-            # if self._handlePixelsDraw:
-            #     bpy.types.SpaceView3D.draw_handler_remove(self._handlePixelsDraw, 'WINDOW')
-            self.report({'INFO'}, 'CANCELLED')
+        if event.type in {'RIGHTMOUSE', 'ESC'}:
             return {'CANCELLED'}
+        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'} # Allow navigation
+
+        if self._line_draw_handle is None: # Drawing has not started
+            if event.type == 'LEFTMOUSE':
+                self.start_point = Vector((event.mouse_region_x, event.mouse_region_y))
+                self.end_point = self.start_point # To prevent drawing line to random place
+                args = (self, context)
+                self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
+        elif event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
+            # Update and constrain end point
+            self.end_point = Vector((event.mouse_region_x, event.mouse_region_y))
+            if event.shift:
+                self.axis_snap(self.start_point, self.end_point, delta)
+
+            if event.type == 'LEFTMOUSE': # Finish updating the line and paint the vertices
+                if self.end_point == self.start_point:
+                    self.report({'INFO'}, 'Draw a line by dragging in the 3D View. Esc to cancel.')
+                    return {'CANCELLED'}
+
+                bpy.types.SpaceView3D.draw_handler_remove(self._line_draw_handle, 'WINDOW')
+                self._line_draw_handle = None
+
+                start_color = Color((0, 0, 0))
+                end_color = Color((1, 1, 1))
+                self.paintVerts(context, self.start_point, self.end_point, start_color, end_color)
+                return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
 
@@ -895,7 +864,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         island_colors = {} # Island face count : Random color pairs
 
         # HSV 0, 1, 1. Add an alpha channel if supported
-        base_color =  Color((1, 0, 0))
+        base_color = Color((1, 0, 0, 1)) if bpy.app.version > (2, 79, 0) else Color((1, 0, 0))
 
         # Used for setting hue with order based color assignment
         separationDiff = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
@@ -924,10 +893,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
             for face in island:
                 for loop in face.loops:
-                    if bpy.app.version > (2, 79, 0):
-                        loop[color_layer] = [color[0], color[1], color[2], 1]
-                    else:
-                        loop[color_layer] = color
+                    loop[color_layer] = color
 
         # Restore selection
         for f in selected_faces:
