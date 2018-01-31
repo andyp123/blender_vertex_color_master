@@ -41,7 +41,7 @@ import bgl
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 70),
+    "version": (0, 75),
     "blender": (2, 79, 0),
     "location": "Vertex Paint | View3D > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
@@ -779,7 +779,7 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
                 start_color = Color((0, 0, 0))
                 end_color = Color((1, 1, 1))
                 isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
-                if bpy.app.version > (2, 79, 0) and isolate is None:
+                if isolate is None:
                     start_color = bpy.data.brushes['Draw'].color
                     end_color = bpy.data.brushes['Draw'].secondary_color
 
@@ -1442,6 +1442,7 @@ class VertexColorMaster_IsolateChannel(bpy.types.Operator):
         copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True, alpha_mode='FILL')
         mesh.vertex_colors.active = iso_vcol
         brush = bpy.data.brushes['Draw']
+        settings.brush_color = brush.color
         brush.color = [settings.brush_value_isolate] * 3
 
         return {'FINISHED'}
@@ -1474,9 +1475,12 @@ class VertexColorMaster_ApplyIsolatedChannel(bpy.types.Operator):
 
         iso_vcol = mesh.vertex_colors.active
 
+        brush = bpy.data.brushes['Draw']
+        brush.color = settings.brush_color
+        settings.update_brush_value(context)
+
         if self.discard:
             mesh.vertex_colors.remove(iso_vcol)
-            settings.update_brush_value(context)
             return {'FINISHED'}
 
         vcol_info = get_isolated_channel_ids(iso_vcol)
@@ -1493,10 +1497,24 @@ class VertexColorMaster_ApplyIsolatedChannel(bpy.types.Operator):
         copy_channel(mesh, iso_vcol, vcol, 0, channel_idx)
         mesh.vertex_colors.active = vcol
         mesh.vertex_colors.remove(iso_vcol)
-        settings.update_brush_value(context)
 
         return {'FINISHED'}
 
+# TODO: Remove this once 2.79.1 is released. 2.79.0 compatibility function.
+# replace in UI with paint.brush_colors_flip
+class VertexColorMaster_FlipBrushColors(bpy.types.Operator):
+    """Toggle foreground and background brush colors."""
+    bl_idname = 'vertexcolormaster.brush_colors_flip'
+    bl_label = "VCM Flip Brush Colors"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        brush = bpy.data.brushes['Draw']
+        color = Color(brush.color)
+        brush.color = brush.secondary_color
+        brush.secondary_color = color
+
+        return {'FINISHED'}
 
 ###############################################################################
 # MAIN CLASS, UI, SETTINGS, PREFS AND REGISTRATION
@@ -1530,7 +1548,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         items=channel_items,
         description="Which channels to enable.",
         # default={'R', 'G', 'B'},
-        update=update_active_channels
+        update=update_active_channels # TODO: Remove this once Blender 2.79.1 is out
     )
 
     match_brush_to_active_channels = BoolProperty(
@@ -1559,6 +1577,13 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         brush.color = color
 
         return None
+
+    # Used only to store the color between RGBA and isolate modes
+    brush_color = FloatVectorProperty(
+        name="Brush Color",
+        description="Color of the brush.",
+        default=(1, 0, 0)
+    )
 
     brush_value = FloatProperty(
         name="Brush Value",
@@ -1691,20 +1716,19 @@ class VertexColorMaster(bpy.types.Panel):
         row.label('Brush Settings')
 
         if mode == 'COLOR':
-            row = col.row(align=True)
+            row = col.row(align=False)
             row.prop(settings, 'match_brush_to_active_channels')
             row = col.row(align=True)
             row.prop(brush, 'color', text="")
-            row.prop(settings, 'brush_value', 'Val', slider=True)
-            row = col.row(align=True)
-            row.prop(brush, 'strength', text="Strength")
-            row = col.row(align=True)
+            row.prop(brush, 'secondary_color', text="")
+            row.separator()
+            row.operator('vertexcolormaster.brush_colors_flip', "", icon='FILE_REFRESH')
+            col.separator()
+            row = col.row(align=False)
             row.operator('vertexcolormaster.quick_fill', "Fill With Color").fill_color = brush.color
         else:
             row = col.row(align=True)
             row.prop(settings, 'brush_value_isolate', 'Val', slider=True)
-            row = col.row(align=True)
-            row.prop(brush, 'strength', text="Strength")
 
         row = layout.row()
         row.prop(brush, 'vertex_tool', text="Blend")
@@ -1714,6 +1738,8 @@ class VertexColorMaster(bpy.types.Panel):
         row.operator('vertexcolormaster.edit_brush_settings', "Add").blend_mode = 'ADD'
         row.operator('vertexcolormaster.edit_brush_settings', "Sub").blend_mode = 'SUB'
         row.operator('vertexcolormaster.edit_brush_settings', "Blur").blend_mode = 'BLUR'
+        row = col.row(align=True)
+        row.prop(brush, 'strength', text="Strength")
 
 
     def draw_active_channel_operations(self, context, layout, obj, settings, mode='STANDARD'):
@@ -1856,6 +1882,7 @@ def register():
     bpy.utils.register_class(VertexColorMaster_RandomiseMeshIslandColors)
     bpy.utils.register_class(VertexColorMaster_LinearGradient)
     bpy.utils.register_class(VertexColorMaster_AdjustHSV)
+    bpy.utils.register_class(VertexColorMaster_FlipBrushColors)
 
 def unregister():
     bpy.utils.unregister_class(VertexColorMasterProperties)
@@ -1880,6 +1907,7 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_RandomiseMeshIslandColors)
     bpy.utils.unregister_class(VertexColorMaster_LinearGradient)
     bpy.utils.unregister_class(VertexColorMaster_AdjustHSV)
+    bpy.utils.unregister_class(VertexColorMaster_FlipBrushColors)
 
 
 # allows running addon from text editor
