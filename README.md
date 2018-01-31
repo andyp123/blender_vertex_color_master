@@ -23,9 +23,8 @@ The add-on will appear in it's own tab ('Vertex Color Master') in vertex paint m
 
 ![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vertex_color_master.png)
 
-## Functions
 
-### Brush Settings
+## Brush Settings
 Brush settings contains a few of the most useful brush options so that the add-on can be open and useful without needing the full brush menu to be open. This way there is more space in the Tools panel, even on smaller displays.
 
 + __Match Active Channels__ (on) - With this option enabled, changing the active channels will update the brush color to match the channels that are active, such that enabling only R will give red, R and G will give yellow and all RGB will give white etc. This is useful for painting with add or subtract blend modes. If this is undesirable, disable this option.
@@ -35,7 +34,8 @@ This will ignore any selected active channels and fill the mesh with the current
 
 + __Fill Color__ (white) - Color with which to fill the mesh or selection (if using selection mask).
 
-### Active Channels
+
+## Active Channels
 The active channels section allows the user to enable or disable channels that the functions directly under the active channels will work on. For example, enabling only the R channel will mean that it is the only channel to be affected when the Invert button is pressed, etc. Different combinations of RGBA can be selected by holding the shift key while clicking on the channel buttons.
 
 As channels are activated and deactivated, the brush color will update to match them. If the Add or Subtract brush blending modes are set, this enables the user to paint only on active channels quite easily.
@@ -75,7 +75,8 @@ Remap the value of the currently active channel(s). This function takes values i
 
 + __Output Range Min__ (1) - Maximum value of the output range.
 
-### Data Transfer
+
+## Data Transfer
 This section allows quick transfer of data between different color layers, vertex groups and uv layers on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled. If a UV layer is selected (UVs are prefixed with 'UV:'), channels will not be selectable at all.
 
 Depending on the type of data selected in either 'Src' or 'Dst', a different operations will be available from the UI. If vertex groups or UVs are selected in either 'Src' or 'Dst', a different UI will be shown that enables only simple data transfer. Transfer between two vertex groups, uv layers or vertex groups and uv layer is currently unsupported.
@@ -114,11 +115,12 @@ Copy the weight value of the uv layer in the 'Src' layer to the 'Dst' channel.
 ### Src to UVs
 Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 
-### Misc Operations
+
+## Misc Operations
 The 'Misc Operations' section contains features unrelated to the main features of the addon.
 
-### Randomise Mesh Island Colors
-All separate parts of a mesh (islands), will be assigned random colors. Only the hue will be randomised, but the saturation and value will always be 1.
+### Randomize Mesh Island Colors
+All separate parts of a mesh (islands), will be assigned random colors based on various randomization parameters.
 
 + __Randomize Hue__ (on, 0) - Enable randomization of the hue parameter of generated colors. When disabled, the value to the right will be used instead of being random.
 
@@ -145,7 +147,6 @@ Enables modification of the Hue, Saturation and Value of vertex color data.
 
 ### Gradient Tool
 When enabled, the gradient tool allows you to draw a line representing the start and end of a gradient in the 3D view. Once the line has been drawn, a gradient will be painted onto the mesh. The brush primary and secondary colors are used to set the gradient colors, but in isolate mode the gradient is always black to white.
-
 
 
 ## Planned / Possible Features

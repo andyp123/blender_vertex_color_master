@@ -794,10 +794,10 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
 
 
 # Partly based on code by Bartosz Styperek
-class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
+class VertexColorMaster_RandomizeMeshIslandColors(bpy.types.Operator):
     """Assign random colors to separate mesh islands"""
-    bl_idname = 'vertexcolormaster.randomise_mesh_island_colors'
-    bl_label = 'VCM Randomise Mesh Island Colors'
+    bl_idname = 'vertexcolormaster.randomize_mesh_island_colors'
+    bl_label = 'VCM Randomize Mesh Island Colors'
     bl_options = {'REGISTER', 'UNDO'}
 
     random_seed = IntProperty(
@@ -1902,7 +1902,7 @@ class VertexColorMaster(bpy.types.Panel):
         col = layout.column(align=True)
         if mode == 'STANDARD':
             row = col.row(align=True)
-            row.operator('vertexcolormaster.randomise_mesh_island_colors', "Randomise Mesh Island Colors")
+            row.operator('vertexcolormaster.randomize_mesh_island_colors', "Randomize Mesh Island Colors")
             row = col.row(align=True)
             row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
         row = col.row(align=True)
@@ -1934,7 +1934,7 @@ def register():
     bpy.utils.register_class(VertexColorMaster_ColorToUVs)
     bpy.utils.register_class(VertexColorMaster_IsolateChannel)
     bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
-    bpy.utils.register_class(VertexColorMaster_RandomiseMeshIslandColors)
+    bpy.utils.register_class(VertexColorMaster_RandomizeMeshIslandColors)
     bpy.utils.register_class(VertexColorMaster_LinearGradient)
     bpy.utils.register_class(VertexColorMaster_AdjustHSV)
     bpy.utils.register_class(VertexColorMaster_FlipBrushColors)
@@ -1959,7 +1959,7 @@ def unregister():
     bpy.utils.unregister_class(VertexColorMaster_ColorToUVs)
     bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
     bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
-    bpy.utils.unregister_class(VertexColorMaster_RandomiseMeshIslandColors)
+    bpy.utils.unregister_class(VertexColorMaster_RandomizeMeshIslandColors)
     bpy.utils.unregister_class(VertexColorMaster_LinearGradient)
     bpy.utils.unregister_class(VertexColorMaster_AdjustHSV)
     bpy.utils.unregister_class(VertexColorMaster_FlipBrushColors)
