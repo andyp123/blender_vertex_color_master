@@ -869,7 +869,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         separationDiff = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
 
         for index, island in enumerate(mesh_islands):
-            color = Color((1, 1, 1))
+            color = Color((1, 0, 0)) # (0, 1, 1) HSV
 
             if self.merge_similar:
                 face_count = len(island)
