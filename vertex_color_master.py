@@ -70,10 +70,6 @@ def channel_items(self, context):
 
     return items
 
-hsv_items = (('H', "H", ""),
-             ('S', "S", ""),
-             ('V', "V", ""))
-
 brush_blend_mode_items = (('MIX', "Mix", ""),
                           ('ADD', "Add", ""),
                           ('SUB', "Sub", ""),
@@ -599,7 +595,7 @@ def get_validated_input(context, get_src, get_dst):
 # MAIN OPERATOR CLASSES
 ###############################################################################
 
-# For ModalGradient tool by Bartosz Styperek
+# For the Linear Gradient tool by Bartosz Styperek
 def draw_line(self, context):
     # font_id = 0  # XXX, need to find out how best to get this.
     # draw some text
@@ -648,7 +644,7 @@ def draw_pixels(self, context):
     bgl.glColor3f(0.0, 0.0, 0.0)
 
 
-# This function from a script by Bartosz Styperek
+# This function from a script by Bartosz Styperek with modifications by me
 class VertexColorMaster_LinearGradient(bpy.types.Operator):
     """Draw a line with the mouse to paint a vertex color gradient."""
     bl_idname = "vertexcolormaster.linear_gradient"
@@ -804,12 +800,54 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
     bl_label = 'VCM Randomise Mesh Island Colors'
     bl_options = {'REGISTER', 'UNDO'}
 
-    randomised_channels = EnumProperty(
-        name="Randomize HSV",
-        options={'ENUM_FLAG'},
-        items=hsv_items,
-        default={'H'},
-        description="Enable/Disable HSV channels for randomization."
+    random_seed = IntProperty(
+        name="Random Seed",
+        description="Seed for the randomization. Change this value to get different random colors.",
+        default=1,
+        min=1,
+        max=1000
+    )
+
+    randomize_hue = BoolProperty(
+        name="Randmize Hue",
+        description="Randomize Hue",
+        default=True
+    )
+
+    randomize_saturation = BoolProperty(
+        name="Randmize Saturation",
+        description="Randomize Saturation",
+        default=False
+    )
+
+    randomize_value = BoolProperty(
+        name="Randmize Value",
+        description="Randomize Value",
+        default=False
+    )
+
+    base_hue = FloatProperty(
+        name="Hue",
+        description="When not randomized, the hue will be set to this value.",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    )
+
+    base_saturation = FloatProperty(
+        name="Saturation",
+        description="When not randomized, the saturation will be set to this value.",
+        default=1.0,
+        min=0.0,
+        max=1.0
+    )
+
+    base_value = FloatProperty(
+        name="Value",
+        description="When not randomized, the value will be set to this value.",
+        default=1.0,
+        min=0.0,
+        max=1.0
     )
 
     order_based = BoolProperty(
@@ -824,11 +862,27 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
         default=False
     )
 
-    Seed = IntProperty(
-        name="Noise Seed",
-        description="Noise Seed",
-        default=1,
-        min=1, max=1000)
+    # Use custom UI for better showing randomization parameters
+    def draw(self, context):
+        layout = self.layout
+
+        layout.label("Randomization Parameters")
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.prop(self, 'randomize_hue', "Randomize")
+        row.prop(self, 'base_hue', "H", slider=True)
+        row = col.row(align=True)
+        row.prop(self, 'randomize_saturation', "Randomize")
+        row.prop(self, 'base_saturation', "S", slider=True)
+        row = col.row(align=True)
+        row.prop(self, 'randomize_value', "Randomize")
+        row.prop(self, 'base_value', "V", slider=True)
+
+        layout.prop(self, 'random_seed', "Seed", slider=True)
+
+        layout.prop(self, 'order_based')
+        layout.prop(self, 'merge_similar')
 
     @classmethod
     def poll(cls, context):
@@ -837,7 +891,7 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
 
     def execute(self, context):
         mesh = context.active_object.data
-        random.seed(self.Seed)
+        random.seed(self.random_seed)
 
         bpy.ops.object.mode_set(mode='EDIT', toggle=False)
 
@@ -876,19 +930,19 @@ class VertexColorMaster_RandomiseMeshIslandColors(bpy.types.Operator):
                 if face_count in island_colors.keys():
                     color = island_colors[face_count]
                 else:
-                    color.h = random.random() if 'H' in self.randomised_channels else 0.0
-                    color.s = random.random() if 'S' in self.randomised_channels else 1.0
-                    color.v = random.random() if 'V' in self.randomised_channels else 1.0
+                    color.h = random.random() if self.randomize_hue else self.base_hue
+                    color.s = random.random() if self.randomize_saturation else self.base_saturation
+                    color.v = random.random() if self.randomize_value else self.base_value
                     island_colors[face_count] = color
             else:
                 if self.order_based:
-                    color.h = index * separationDiff if 'H' in self.randomised_channels else 0.0
-                    color.s = index * separationDiff if 'S' in self.randomised_channels else 1.0
-                    color.v = index * separationDiff if 'V' in self.randomised_channels else 1.0
+                    color.h = index * separationDiff if self.randomize_hue else self.base_hue
+                    color.s = index * separationDiff if self.randomize_saturation else self.base_saturation
+                    color.v = index * separationDiff if self.randomize_value else self.base_value
                 else:
-                    color.h = random.random() if 'H' in self.randomised_channels else 0.0
-                    color.s = random.random() if 'S' in self.randomised_channels else 1.0
-                    color.v = random.random() if 'V' in self.randomised_channels else 1.0
+                    color.h = random.random() if self.randomize_hue else self.base_hue
+                    color.s = random.random() if self.randomize_saturation else self.base_saturation
+                    color.v = random.random() if self.randomize_value else self.base_value
 
             for face in island:
                 for loop in face.loops:
@@ -1499,6 +1553,7 @@ class VertexColorMaster_ApplyIsolatedChannel(bpy.types.Operator):
         mesh.vertex_colors.remove(iso_vcol)
 
         return {'FINISHED'}
+
 
 # TODO: Remove this once 2.79.1 is released. 2.79.0 compatibility function.
 # replace in UI with paint.brush_colors_flip
