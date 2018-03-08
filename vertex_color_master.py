@@ -65,7 +65,7 @@ valid_layer_types = [type_vcol, type_vgroup, type_uv]
 def channel_items(self, context):
     items = [(red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", "")]
 
-    if bpy.app.version > (2, 79, 0):
+    if alpha_supported():
         items.append((alpha_id, "A", ""))
 
     return items
@@ -93,6 +93,9 @@ isolate_mode_name_prefix = 'VCM-ISO'
 ###############################################################################
 # HELPER FUNCTIONS
 ###############################################################################
+
+def alpha_supported():
+    return bpy.app.version > (2, 79, 0)
 
 def posterize(value, steps):
     return round(value * steps) / steps
