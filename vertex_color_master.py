@@ -97,6 +97,7 @@ isolate_mode_name_prefix = 'VCM-ISO'
 def alpha_supported():
     return bpy.app.version > (2, 79, 0)
 
+
 def posterize(value, steps):
     return round(value * steps) / steps
 
