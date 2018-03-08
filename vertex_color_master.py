@@ -759,7 +759,7 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
             # Update and constrain end point
             self.end_point = Vector((event.mouse_region_x, event.mouse_region_y))
             if event.shift:
-                self.axis_snap(self.start_point, self.end_point, delta)
+                self.end_point = self.axis_snap(self.start_point, self.end_point, delta)
 
             if event.type == 'LEFTMOUSE': # Finish updating the line and paint the vertices
                 context.area.header_text_set()
@@ -786,7 +786,7 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
     def invoke(self, context, event):
         if context.area.type == 'VIEW_3D':
             context.window_manager.modal_handler_add(self)
-            context.area.header_text_set("Draw a line by dragging in the 3D View. Esc to cancel.")
+            context.area.header_text_set("Draw a line by dragging in the 3D View. Hold Shift to snap, Esc to cancel.")
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")
