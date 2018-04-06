@@ -29,6 +29,7 @@ import bpy
 import bmesh # for random color to mesh islands
 import random # for random color to mesh islands
 import copy # for copying data structures
+import math
 from math import fmod
 from bpy.props import *
 from mathutils import Color, Vector, Matrix, Quaternion
@@ -623,29 +624,30 @@ def draw_line(self, context):
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
 
 
-def draw_pixels(self, context):
+def draw_circle(self, context):
+    # 50% alpha, 2 pixel width line
     bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(0.0, 0.0, 0.0, 0.5)
+    bgl.glLineWidth(2)
 
-    bgl.glColor3f(1, 0, 0)
-    for point in self.debugPixels:
-        bgl.glPointSize(10)
-        bgl.glBegin(bgl.GL_POINTS)
-        bgl.glVertex3f(point[0], point[1], 0)
-        bgl.glEnd()
-        bgl.glDisable(bgl.GL_BLEND)
-        bgl.glPointSize(1)
-
-    bgl.glColor3f(0, 1, 0)
-    bgl.glPointSize(10)
-    bgl.glBegin(bgl.GL_POINTS)
-    bgl.glVertex3f(self.transStart.x, self.transStart.y, 0)
-    bgl.glVertex3f(self.transEnd.x, self.transEnd.y, 0)
+    bgl.glBegin(bgl.GL_LINE_STRIP)
+    bgl.glVertex2i(int(self.start_point.x), int(self.start_point.y))
+    bgl.glVertex2i(int(self.end_point.x), int(self.end_point.y))
     bgl.glEnd()
+
+    delta = self.end_point - self.start_point
+    radius = delta.length
+    nbSteps = 50
+    bgl.glBegin(bgl.GL_LINE_STRIP)
+    for i in range(nbSteps+1):
+        ang = (2.0 * math.pi * i) / nbSteps
+        bgl.glVertex2i(int(self.start_point.x + radius * math.cos(ang)), int(self.start_point.y + radius * math.sin(ang)))
+    bgl.glEnd()
+
+    # restore opengl defaults
+    bgl.glLineWidth(1)
     bgl.glDisable(bgl.GL_BLEND)
-    bgl.glPointSize(1)
-    # restore  defaults
-    bgl.glDisable(bgl.GL_BLEND)
-    bgl.glColor3f(0.0, 0.0, 0.0)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
 
 
 # This function from a script by Bartosz Styperek with modifications by me
@@ -685,15 +687,18 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
         rotation = direction_vector.rotation_difference(down_vector)
 
         translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
-        inverse_translantion_matrix = translation_matrix.inverted()
+        inverse_translation_matrix = translation_matrix.inverted()
         rotation_matrix = rotation.to_matrix().to_4x4()
-        combinedMat = inverse_translantion_matrix * rotation_matrix * translation_matrix
+        combinedMat = inverse_translation_matrix * rotation_matrix * translation_matrix
 
         transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
         transEnd = combinedMat * end_point.to_4d()
         minY = transStart.y
         maxY = transEnd.y
         heightTrans = maxY - minY  # Get the height of transformed vector
+
+        transVector = transEnd - transStart
+        transLen = transVector.length
 
         # Calculate hue, saturation and value shift for blending
         c1_hue = start_color.h
@@ -710,12 +715,20 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
 
         color_layer = bm.loops.layers.color.active
 
+        settings = context.scene.vertex_color_master_settings
+
         for data in vertex_data:
             vertex = data[0]
             vertCo4d = Vector((data[1].x, data[1].y, 0))
             transVec = combinedMat * vertCo4d
 
-            t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            if settings.circular_gradient_tool:
+                curVector = transVec.to_4d() - transStart
+                curLen = curVector.length
+                t = abs(max(min(curLen / transLen, 1), 0))
+            else:
+                t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+
             color = Color((1, 0, 0))
             # Hue wraps, and fmod doesn't work with negative values
             color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
@@ -758,7 +771,11 @@ class VertexColorMaster_LinearGradient(bpy.types.Operator):
                 self.start_point = Vector((event.mouse_region_x, event.mouse_region_y))
                 self.end_point = self.start_point # To prevent drawing line to random place
                 args = (self, context)
-                self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
+                settings = context.scene.vertex_color_master_settings
+                if settings.circular_gradient_tool:
+                    self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_circle, args, 'WINDOW', 'POST_PIXEL')
+                else:
+                    self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
         elif event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
             # Update and constrain end point
             self.end_point = Vector((event.mouse_region_x, event.mouse_region_y))
@@ -1713,6 +1730,11 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         description="Channel blending operation.",
     )
 
+    circular_gradient_tool = BoolProperty(
+        name="Circular Gradient Tool",
+        default=False,
+        description="Replace linear gradient tool by a circular one.",
+    )
 
 class VertexColorMaster(bpy.types.Panel):
     """Add-on for working with vertex color data"""
@@ -1911,7 +1933,8 @@ class VertexColorMaster(bpy.types.Panel):
             row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
         row = col.row(align=True)
         row.operator('vertexcolormaster.linear_gradient', "Gradient Tool")
-        
+        row = col.row(align=False)
+        row.prop(settings, 'circular_gradient_tool')
 
 ###############################################################################
 # OPERATOR REGISTRATION
