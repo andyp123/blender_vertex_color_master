@@ -1753,8 +1753,8 @@ classes = (
 
 def register():
     # register properties (see also VertexColorMasterProperties class)
-    bpy.types.Scene.vertex_color_master_settings = PointerProperty(
-        type=VertexColorMasterProperties)
+    # bpy.types.Scene.vertex_color_master_settings = PointerProperty(
+    #     type=VertexColorMasterProperties)
 
     # add operators
     for c in classes:
@@ -1766,7 +1766,7 @@ def unregister():
         bpy.utils.unregister_class(c)
 
     # unregister properties
-    del bpy.types.Scene.vertex_color_master_settings
+    # del bpy.types.Scene.vertex_color_master_settings
 
 # allows running addon from text editor
 if __name__ == '__main__':
