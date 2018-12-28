@@ -159,6 +159,6 @@ When enabled, the gradient tool allows you to draw a line representing the start
 
 ---
 
-If you like this Add-on and would like to make a donation, you can do so buy clicking this button. Every little helps, even if it just keeps me caffeinated!
+If you like this Add-on and would like to make a donation, you can do so by clicking this button. Every little helps, even if it just keeps me caffeinated!
 
 [![Donate](https://www.paypalobjects.com/en_US/GB/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S3GTZ2J938U6Y&lc=GB&item_name=Andrew%20Palmer&currency_code=GBP&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
