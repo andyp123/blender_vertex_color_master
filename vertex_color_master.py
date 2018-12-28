@@ -63,13 +63,10 @@ type_vgroup = 'VGROUP'
 type_uv = 'UV'
 valid_layer_types = [type_vcol, type_vgroup, type_uv]
 
-def channel_items(self, context):
-    items = [(red_id, "R", ""), (green_id, "G", ""), (blue_id, "B", "")]
-
-    if alpha_supported():
-        items.append((alpha_id, "A", ""))
-
-    return items
+channel_items = ((red_id, "R", ""),
+                 (green_id, "G", ""),
+                 (blue_id, "B", ""),
+                 (alpha_id, "A", ""))
 
 brush_blend_mode_items = (('MIX', "Mix", ""),
                           ('ADD', "Add", ""),
@@ -94,10 +91,6 @@ isolate_mode_name_prefix = 'VCM-ISO'
 ###############################################################################
 # HELPER FUNCTIONS
 ###############################################################################
-
-def alpha_supported():
-    return bpy.app.version > (2, 79, 0)
-
 
 def posterize(value, steps):
     return round(value * steps) / steps
@@ -1412,8 +1405,8 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         options={'ENUM_FLAG'},
         items=channel_items,
         description="Which channels to enable.",
-        # default={'R', 'G', 'B'},
-        update=update_active_channels # TODO: Remove this once Blender 2.79.1 is out
+        default={'R', 'G', 'B'},
+        update=update_active_channels
     )
 
     match_brush_to_active_channels = BoolProperty(
