@@ -34,16 +34,16 @@ from math import fmod
 from bpy.props import *
 from mathutils import Color, Vector, Matrix, Quaternion
 
-# for gradient tool
-from bpy_extras import view3d_utils
-import bgl
+# # for gradient tool
+# from bpy_extras import view3d_utils
+# import bgl
 
 
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 75),
-    "blender": (2, 79, 0),
+    "version": (0, 80),
+    "blender": (2, 80, 0),
     "location": "Vertex Paint | View3D > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
     "category": "Paint",
@@ -600,218 +600,7 @@ def get_validated_input(context, get_src, get_dst):
 # MAIN OPERATOR CLASSES
 ###############################################################################
 
-# For the Linear Gradient tool by Bartosz Styperek
-def draw_line(self, context):
-    # font_id = 0  # XXX, need to find out how best to get this.
-    # draw some text
-    # blf.position(font_id, 15, 30, 0)
-    # blf.size(font_id, 20, 72)
-    # blf.draw(font_id, "Pos " + str(self.end_point.x) + " " + str(self.end_point.y))
 
-    # 50% alpha, 2 pixel width line
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(0.0, 0.0, 0.0, 0.5)
-    bgl.glLineWidth(2)
-
-    bgl.glBegin(bgl.GL_LINE_STRIP)
-    bgl.glVertex2i(int(self.start_point.x), int(self.start_point.y))
-    bgl.glVertex2i(int(self.end_point.x), int(self.end_point.y))
-    bgl.glEnd()
-
-    # restore opengl defaults
-    bgl.glLineWidth(1)
-    bgl.glDisable(bgl.GL_BLEND)
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-
-
-def draw_circle(self, context):
-    # 50% alpha, 2 pixel width line
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(0.0, 0.0, 0.0, 0.5)
-    bgl.glLineWidth(2)
-
-    bgl.glBegin(bgl.GL_LINE_STRIP)
-    bgl.glVertex2i(int(self.start_point.x), int(self.start_point.y))
-    bgl.glVertex2i(int(self.end_point.x), int(self.end_point.y))
-    bgl.glEnd()
-
-    delta = self.end_point - self.start_point
-    radius = delta.length
-    nbSteps = 50
-    bgl.glBegin(bgl.GL_LINE_STRIP)
-    for i in range(nbSteps+1):
-        ang = (2.0 * math.pi * i) / nbSteps
-        bgl.glVertex2i(int(self.start_point.x + radius * math.cos(ang)), int(self.start_point.y + radius * math.sin(ang)))
-    bgl.glEnd()
-
-    # restore opengl defaults
-    bgl.glLineWidth(1)
-    bgl.glDisable(bgl.GL_BLEND)
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-
-
-# This function from a script by Bartosz Styperek with modifications by me
-class VertexColorMaster_LinearGradient(bpy.types.Operator):
-    """Draw a line with the mouse to paint a vertex color gradient."""
-    bl_idname = "vertexcolormaster.linear_gradient"
-    bl_label = "VCM Linear Gradient Tool"
-    bl_description = "Paint linear vertex gradient."
-    bl_options = {"REGISTER", "UNDO"}
-
-    _line_draw_handle = None
-
-    start_point = None
-    end_point = None
-
-    def paintVerts(self, context, start_point, end_point, start_color, end_color):
-        region = context.region
-        rv3d = context.region_data
-
-        obj = context.active_object
-        mesh = obj.data
-
-        bm = bmesh.new()  # create an empty BMesh
-        bm.from_mesh(mesh)  # fill it in from a Mesh
-        bm.verts.ensure_lookup_table()
-
-        # List of structures containing 3d vertex and project 2d position of vertex
-        vertex_data = None # Will contain vert, and vert coordinates in 2d view space
-        if mesh.use_paint_mask_vertex: # Face masking not currently supported
-            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
-        else:
-            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
-
-        # Vertex transformation math
-        down_vector = Vector((0, -1, 0))
-        direction_vector = Vector((end_point.x - start_point.x, end_point.y - start_point.y, 0)).normalized()
-        rotation = direction_vector.rotation_difference(down_vector)
-
-        translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
-        inverse_translation_matrix = translation_matrix.inverted()
-        rotation_matrix = rotation.to_matrix().to_4x4()
-        combinedMat = inverse_translation_matrix * rotation_matrix * translation_matrix
-
-        transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
-        transEnd = combinedMat * end_point.to_4d()
-        minY = transStart.y
-        maxY = transEnd.y
-        heightTrans = maxY - minY  # Get the height of transformed vector
-
-        transVector = transEnd - transStart
-        transLen = transVector.length
-
-        # Calculate hue, saturation and value shift for blending
-        c1_hue = start_color.h
-        c2_hue = end_color.h
-        hue_separation = c2_hue - c1_hue
-        if hue_separation > 0.5:
-            hue_separation = hue_separation - 1
-        elif hue_separation < -0.5:
-            hue_separation = hue_separation + 1
-        c1_sat = start_color.s
-        sat_separation = end_color.s - c1_sat
-        c1_val = start_color.v
-        val_separation = end_color.v - c1_val
-
-        color_layer = bm.loops.layers.color.active
-
-        settings = context.scene.vertex_color_master_settings
-
-        for data in vertex_data:
-            vertex = data[0]
-            vertCo4d = Vector((data[1].x, data[1].y, 0))
-            transVec = combinedMat * vertCo4d
-
-            if settings.circular_gradient_tool:
-                curVector = transVec.to_4d() - transStart
-                curLen = curVector.length
-                t = abs(max(min(curLen / transLen, 1), 0))
-            else:
-                t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
-
-            color = Color((1, 0, 0))
-            # Hue wraps, and fmod doesn't work with negative values
-            color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
-            color.s = c1_sat + sat_separation * t
-            color.v = c1_val + val_separation * t
-
-            if mesh.use_paint_mask: # Masking by face
-                face_loops = [loop for loop in vertex.link_loops if loop.face.select] # Get only loops that belong to selected faces
-            else: # Masking by verts or no masking at all
-                face_loops = [loop for loop in vertex.link_loops] # Get remaining vert loops
-
-            for loop in face_loops:
-                new_color = loop[color_layer]
-                new_color[:3] = color
-                loop[color_layer] = new_color
-
-        bm.to_mesh(mesh)
-        bm.free()
-        bpy.ops.object.mode_set(mode='VERTEX_PAINT')
-
-    def axis_snap(self, start, end, delta):
-        if start.x - delta < end.x < start.x + delta:
-            return Vector((start.x, end.y))
-        if start.y - delta < end.y < start.y + delta:
-            return Vector((end.x, start.y))
-        return end
-
-    def modal(self, context, event):
-        context.area.tag_redraw()
-        delta = 20
-
-        if event.type in {'RIGHTMOUSE', 'ESC'}:
-            context.area.header_text_set()
-            return {'CANCELLED'}
-        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-            return {'PASS_THROUGH'} # Allow navigation
-
-        if self._line_draw_handle is None: # Drawing has not started
-            if event.type == 'LEFTMOUSE':
-                self.start_point = Vector((event.mouse_region_x, event.mouse_region_y))
-                self.end_point = self.start_point # To prevent drawing line to random place
-                args = (self, context)
-                settings = context.scene.vertex_color_master_settings
-                if settings.circular_gradient_tool:
-                    self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_circle, args, 'WINDOW', 'POST_PIXEL')
-                else:
-                    self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
-        elif event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
-            # Update and constrain end point
-            self.end_point = Vector((event.mouse_region_x, event.mouse_region_y))
-            if event.shift:
-                self.end_point = self.axis_snap(self.start_point, self.end_point, delta)
-
-            if event.type == 'LEFTMOUSE': # Finish updating the line and paint the vertices
-                context.area.header_text_set()
-
-                if self.end_point == self.start_point:
-                    return {'CANCELLED'}
-
-                bpy.types.SpaceView3D.draw_handler_remove(self._line_draw_handle, 'WINDOW')
-                self._line_draw_handle = None
-
-                # Use color gradient where supported (unless we are in isolate mode)
-                start_color = Color((0, 0, 0))
-                end_color = Color((1, 1, 1))
-                isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
-                if isolate is None:
-                    start_color = bpy.data.brushes['Draw'].color
-                    end_color = bpy.data.brushes['Draw'].secondary_color
-
-                self.paintVerts(context, self.start_point, self.end_point, start_color, end_color)
-                return {'FINISHED'}
-
-        return {'RUNNING_MODAL'}
-
-    def invoke(self, context, event):
-        if context.area.type == 'VIEW_3D':
-            context.window_manager.modal_handler_add(self)
-            context.area.header_text_set("Draw a line by dragging in the 3D View. Hold Shift to snap, Esc to cancel.")
-            return {'RUNNING_MODAL'}
-        else:
-            self.report({'WARNING'}, "View3D not found, cannot run operator")
-            return {'CANCELLED'}
 
 
 # Partly based on code by Bartosz Styperek
@@ -1739,9 +1528,9 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
 class VertexColorMaster(bpy.types.Panel):
     """Add-on for working with vertex color data"""
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_label = 'Vertex Color Master'
-    bl_category =  'Vertex Color Master' # 'Tools'
+    # bl_category =  'Vertex Color Master' # 'Tools'
     bl_context = 'vertexpaint'
 
     def draw(self, context):
@@ -1932,65 +1721,52 @@ class VertexColorMaster(bpy.types.Panel):
             row = col.row(align=True)
             row.operator('vertexcolormaster.adjust_hsv', "Adjust HSV")
         row = col.row(align=True)
-        row.operator('vertexcolormaster.linear_gradient', "Gradient Tool")
-        row = col.row(align=False)
-        row.prop(settings, 'circular_gradient_tool')
+
 
 ###############################################################################
 # OPERATOR REGISTRATION
 ###############################################################################
 
+classes = (
+    VertexColorMasterProperties,
+    VertexColorMaster,
+    VertexColorMaster_QuickFill,
+    VertexColorMaster_Fill,
+    VertexColorMaster_Invert,
+    VertexColorMaster_Posterize,
+    VertexColorMaster_Remap,
+    VertexColorMaster_CopyChannel,
+    VertexColorMaster_RgbToGrayscale,
+    VertexColorMaster_BlendChannels,
+    VertexColorMaster_EditBrushSettings,
+    VertexColorMaster_WeightsToColor,
+    VertexColorMaster_ColorToWeights,
+    VertexColorMaster_UVsToColor,
+    VertexColorMaster_ColorToUVs,
+    VertexColorMaster_IsolateChannel,
+    VertexColorMaster_ApplyIsolatedChannel,
+    VertexColorMaster_RandomizeMeshIslandColors,
+    # VertexColorMaster_LinearGradient,
+    VertexColorMaster_AdjustHSV,
+    VertexColorMaster_FlipBrushColors,
+)
+
 def register():
-    bpy.utils.register_class(VertexColorMasterProperties)
+    # register properties (see also VertexColorMasterProperties class)
     bpy.types.Scene.vertex_color_master_settings = PointerProperty(
         type=VertexColorMasterProperties)
 
-    bpy.utils.register_class(VertexColorMaster)
-    bpy.utils.register_class(VertexColorMaster_QuickFill)
-    bpy.utils.register_class(VertexColorMaster_Fill)
-    bpy.utils.register_class(VertexColorMaster_Invert)
-    bpy.utils.register_class(VertexColorMaster_Posterize)
-    bpy.utils.register_class(VertexColorMaster_Remap)
-    bpy.utils.register_class(VertexColorMaster_CopyChannel)
-    bpy.utils.register_class(VertexColorMaster_RgbToGrayscale)
-    bpy.utils.register_class(VertexColorMaster_BlendChannels)
-    bpy.utils.register_class(VertexColorMaster_EditBrushSettings)
-    bpy.utils.register_class(VertexColorMaster_WeightsToColor)
-    bpy.utils.register_class(VertexColorMaster_ColorToWeights)
-    bpy.utils.register_class(VertexColorMaster_UVsToColor)
-    bpy.utils.register_class(VertexColorMaster_ColorToUVs)
-    bpy.utils.register_class(VertexColorMaster_IsolateChannel)
-    bpy.utils.register_class(VertexColorMaster_ApplyIsolatedChannel)
-    bpy.utils.register_class(VertexColorMaster_RandomizeMeshIslandColors)
-    bpy.utils.register_class(VertexColorMaster_LinearGradient)
-    bpy.utils.register_class(VertexColorMaster_AdjustHSV)
-    bpy.utils.register_class(VertexColorMaster_FlipBrushColors)
+    # add operators
+    for c in classes:
+        bpy.utils.register_class(c)
 
 def unregister():
-    bpy.utils.unregister_class(VertexColorMasterProperties)
+    # remove operators
+    for c in reversed(classes):
+        bpy.utils.unregister_class(c)
+
+    # unregister properties
     del bpy.types.Scene.vertex_color_master_settings
-
-    bpy.utils.unregister_class(VertexColorMaster)
-    bpy.utils.unregister_class(VertexColorMaster_QuickFill)
-    bpy.utils.unregister_class(VertexColorMaster_Fill)
-    bpy.utils.unregister_class(VertexColorMaster_Invert)
-    bpy.utils.unregister_class(VertexColorMaster_Posterize)
-    bpy.utils.unregister_class(VertexColorMaster_Remap)
-    bpy.utils.unregister_class(VertexColorMaster_CopyChannel)
-    bpy.utils.unregister_class(VertexColorMaster_RgbToGrayscale)
-    bpy.utils.unregister_class(VertexColorMaster_BlendChannels)
-    bpy.utils.unregister_class(VertexColorMaster_EditBrushSettings)
-    bpy.utils.unregister_class(VertexColorMaster_WeightsToColor)
-    bpy.utils.unregister_class(VertexColorMaster_ColorToWeights)
-    bpy.utils.unregister_class(VertexColorMaster_UVsToColor)
-    bpy.utils.unregister_class(VertexColorMaster_ColorToUVs)
-    bpy.utils.unregister_class(VertexColorMaster_IsolateChannel)
-    bpy.utils.unregister_class(VertexColorMaster_ApplyIsolatedChannel)
-    bpy.utils.unregister_class(VertexColorMaster_RandomizeMeshIslandColors)
-    bpy.utils.unregister_class(VertexColorMaster_LinearGradient)
-    bpy.utils.unregister_class(VertexColorMaster_AdjustHSV)
-    bpy.utils.unregister_class(VertexColorMaster_FlipBrushColors)
-
 
 # allows running addon from text editor
 if __name__ == '__main__':
