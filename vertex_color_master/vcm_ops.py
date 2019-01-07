@@ -856,7 +856,12 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
 
     def execute(self, context):
         brush = bpy.data.brushes['Draw']
-        brush.vertex_tool = self.blend_mode
+         # This changed between Blender 2.79 -> 2.80, but keeping blur here
+        if self.blend_mode == 'BLUR':
+            brush.vertex_tool = 'BLUR'
+        else:
+            brush.vertex_tool = 'DRAW'
+            brush.blend = self.blend_mode
 
         return {'FINISHED'}
 

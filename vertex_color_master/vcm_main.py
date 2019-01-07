@@ -239,7 +239,7 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
             row.prop(settings, 'brush_value_isolate', text="Val", slider=True)
 
         row = layout.row()
-        row.prop(brush, 'vertex_tool', text="Blend")
+        row.prop(brush, 'blend', text="Blend")
         col = layout.column(align=True)
         row = col.row(align=True)
         row.operator('vertexcolormaster.edit_brush_settings', text="Mix").blend_mode = 'MIX'
