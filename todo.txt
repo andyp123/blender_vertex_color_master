@@ -1,0 +1,34 @@
+Blender 2.80 vertex paint differences:
+
+brush.vertex_tool (seems to be for the draw mode, not blend)
+DRAW, BLUR, AVERAGE, SMEAR
+
+brush.blend
+MIX, DARKEN, MUL, COLORBURN, LINEARBURN, LIGHTEN, SCREEN, COLORDODGE, ADD, OVERLAY, SOFTLIGHT, HARDLIGHT, VIVIDLIGHT, LINEARLIGHT, PINLIGHT, DIFFERENCE, EXCLUSION, SUB, HUE, SATURATION, COLOR, LUMINOSITY, ERASE_ALPHA, ADD_ALPHA
+
+Issues / TODO:
+Look into how people may want to use vertex color and try to accomodate the use cases
+
++ Vertex alpha painting is not working properly
++ Would be nice to be able to toggle face or vertex mask from VCM UI
++ Add gradient tool back
++ Add submitted circular gradient tool
++ changing value does not change brush color in isolate mode
++ see if I can fix rounding errors during UV>color translation
++ make sure that apply isolate channel works properly and has elegant fallbacks when vcol data is renamed
+
++ material color to vertex color? bake or object material color?
++ view vertex color for multiple objects
++ vertex paint multiple objects (might require c++ coding and patch submission, might also be really hard?)
++ bake ambient occlusion shortcut
++ randomise island color to single channel
++ gradient shading based on distance from selection (kinda like soft selection?)
++ bake vertex color to texture (single channel or RGBA)
+
+Add quick menu/pie with shortcut for activation
+- brush settings: color/value, brush size, rate, etc.
+- channel settings: isolate channel / exit isolate
+- masking + selection
+- quick operations: fill, invert
+
+Add Vertex color workspace (is it possible to add a workspace from menu when addon is active?)
