@@ -51,7 +51,7 @@ def draw_gradient_callback(self, context, line_params, line_shader, circle_shade
             point = Vector(int(a.x + radius * math.cos(angle)), int(a.y + radius * math.sin(angle)))
             circle_points.append(point)
 
-        circle_batch = batch_for_shader(circle_shader, 'LINES' {
+        circle_batch = batch_for_shader(circle_shader, 'LINES', {
             "pos": circle_points})
         circle_shader.bind()
         circle_shader.uniform_float("color", line_params["colors"][1])
@@ -66,6 +66,8 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     bl_label = "VCM Gradient Tool"
     bl_description = "Paint vertex color gradient."
     bl_options = {"REGISTER", "UNDO"}
+
+    _handle = None
 
     line_shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
     circle_shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
@@ -172,59 +174,67 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     def modal(self, context, event):
         context.area.tag_redraw()
 
+        # Begin gradient line and initialize draw handler
+        if self._handle is None:
+            if event.type == 'LEFTMOUSE':
+                # Create arguments to pass to the draw handler callback
+                mouse_position = Vector((event.mouse_region_x, event.mouse_region_y))
+                self.line_params = {
+                    "coords": [mouse_position, mouse_position],
+                    "colors": [bpy.data.brushes['Draw'].color[:] + (1.0,),
+                               bpy.data.brushes['Draw'].secondary_color[:] + (1.0,)],
+                    "width": 1, # currently does nothing
+                }
+                args = (self, context, self.line_params, self.line_shader, (circle_shader if self.circular_gradient else None))
+                self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
+        else:
+            # Update or confirm gradient end point
+            if event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
+                line_params = self.line_params
+                delta = 20
+
+                # Update and constrain end point
+                start_point = line_params["coords"][0]
+                end_point = Vector((event.mouse_region_x, event.mouse_region_y))
+                if event.shift:
+                    end_point = self.axis_snap(start_point, end_point, delta)
+                line_params["coords"] = [start_point, end_point]
+
+                if event.type == 'LEFTMOUSE' and end_point != start_point: # Finish updating the line and paint the vertices
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+                    self._handle = None
+
+                    # Gradient will not work if there is no delta
+                    if end_point != start_point:
+                        return {'CANCELLED'}
+
+                    # Use color gradient or force greyscale in isolate mode
+                    start_color = line_params["colors"][0]
+                    end_color = line_params["colors"][1]
+                    isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+                    if isolate is not None:
+                        start_color = rgb_to_luminance(start_color)
+                        end_color = rgb_to_luminance(end_color)
+
+                    self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient)
+                    return {'FINISHED'}            
+
+        # Allow camera navigation
+        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'}
+
         if event.type in {'RIGHTMOUSE', 'ESC'}:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            if self._handle is not None:
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+                self._handle = None
             return {'CANCELLED'}
 
-        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-            return {'PASS_THROUGH'} # Allow navigation
-
-        if event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
-            line_params = self.line_params
-            delta = 20
-
-            # Update and constrain end point
-            start_point = line_params["coords"][0]
-            end_point = Vector((event.mouse_region_x, event.mouse_region_y))
-            if event.shift:
-                end_point = self.axis_snap(start_point, end_point, delta)
-            line_params["coords"] = [start_point, end_point]
-
-            if event.type == 'LEFTMOUSE': # Finish updating the line and paint the vertices
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
-
-                # Gradient will not work if there is no delta
-                if end_point == start_point:
-                    return {'CANCELLED'}
-
-                # Use color gradient or force greyscale in isolate mode
-                start_color = line_params["colors"][0]
-                end_color = line_params["colors"][1]
-                isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
-                if isolate is not None:
-                    start_color = rgb_to_luminance(start_color)
-                    end_color = rgb_to_luminance(end_color)
-
-                self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient)
-                return {'FINISHED'}
-
+        # Keep running until completed or cancelled
         return {'RUNNING_MODAL'}
 
 
     def invoke(self, context, event):
         if context.area.type == 'VIEW_3D':
-            # Create arguments to pass to the draw handler callback
-            mouse_position = Vector((event.mouse_region_x, event.mouse_region_y))
-            self.line_params = {
-                "coords": [mouse_position, mouse_position],
-                "colors": [bpy.data.brushes['Draw'].color,
-                           bpy.data.brushes['Draw'].secondary_color],
-                "width": 1, # currently does nothing
-            }
-            args = (self, context, self.line_params, self.line_shader, (circle_shader if self.circular_gradient else None))
-
-            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
-
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
