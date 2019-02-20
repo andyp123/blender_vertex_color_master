@@ -28,205 +28,186 @@ import bmesh # for random color to mesh islands
 import random # for random color to mesh islands
 
 # # for gradient tool
-# from bpy_extras import view3d_utils
-# import bgl
+import gpu # used for drawing lines
+from gpu_extras.batch import batch_for_shader
 
-# # For the Linear Gradient tool by Bartosz Styperek
-# def draw_line(self, context):
-#     # font_id = 0  # XXX, need to find out how best to get this.
-#     # draw some text
-#     # blf.position(font_id, 15, 30, 0)
-#     # blf.size(font_id, 20, 72)
-#     # blf.draw(font_id, "Pos " + str(self.end_point.x) + " " + str(self.end_point.y))
+# draw line helper function required:
+# inputs: start, end, start_color, end_color, width
 
-#     # 50% alpha, 2 pixel width line
-#     bgl.glEnable(bgl.GL_BLEND)
-#     bgl.glColor4f(0.0, 0.0, 0.0, 0.5)
-#     bgl.glLineWidth(2)
+def draw_line_callback(self, context, line_params, shader):
+    coord = line_params["coords"][1]
+    # mouse_str = str.format("mouse ({},{}) ", coord[0], coord[1])
+    # # print(mouse_str)
 
-#     bgl.glBegin(bgl.GL_LINE_STRIP)
-#     bgl.glVertex2i(int(self.start_point.x), int(self.start_point.y))
-#     bgl.glVertex2i(int(self.end_point.x), int(self.end_point.y))
-#     bgl.glEnd()
+    # font_id = 0  # XXX, need to find out how best to get this.
 
-#     # restore opengl defaults
-#     bgl.glLineWidth(1)
-#     bgl.glDisable(bgl.GL_BLEND)
-#     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    # # draw some text
+    # blf.position(font_id, 15, 30, 0)
+    # blf.size(font_id, 20, 72)
+    # blf.draw(font_id, mouse_str)
 
+    batch = batch_for_shader(shader, 'LINES', {
+        "pos": line_params["coords"],
+        "color": line_params["colors"]})
 
-# def draw_pixels(self, context):
-#     bgl.glEnable(bgl.GL_BLEND)
-
-#     bgl.glColor3f(1, 0, 0)
-#     for point in self.debugPixels:
-#         bgl.glPointSize(10)
-#         bgl.glBegin(bgl.GL_POINTS)
-#         bgl.glVertex3f(point[0], point[1], 0)
-#         bgl.glEnd()
-#         bgl.glDisable(bgl.GL_BLEND)
-#         bgl.glPointSize(1)
-
-#     bgl.glColor3f(0, 1, 0)
-#     bgl.glPointSize(10)
-#     bgl.glBegin(bgl.GL_POINTS)
-#     bgl.glVertex3f(self.transStart.x, self.transStart.y, 0)
-#     bgl.glVertex3f(self.transEnd.x, self.transEnd.y, 0)
-#     bgl.glEnd()
-#     bgl.glDisable(bgl.GL_BLEND)
-#     bgl.glPointSize(1)
-#     # restore  defaults
-#     bgl.glDisable(bgl.GL_BLEND)
-#     bgl.glColor3f(0.0, 0.0, 0.0)
+    shader.bind()
+    batch.draw(shader)
 
 
-# # This function from a script by Bartosz Styperek with modifications by me
-# class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
-#     """Draw a line with the mouse to paint a vertex color gradient."""
-#     bl_idname = "vertexcolormaster.linear_gradient"
-#     bl_label = "VCM Linear Gradient Tool"
-#     bl_description = "Paint linear vertex gradient."
-#     bl_options = {"REGISTER", "UNDO"}
+# This function from a script by Bartosz Styperek with modifications by me
+class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
+    """Draw a line with the mouse to paint a vertex color gradient."""
+    bl_idname = "vertexcolormaster.linear_gradient"
+    bl_label = "VCM Linear Gradient Tool"
+    bl_description = "Paint linear vertex gradient."
+    bl_options = {"REGISTER", "UNDO"}
 
-#     _line_draw_handle = None
+    shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
 
-#     start_point = None
-#     end_point = None
+    def paintVerts(self, context, start_point, end_point, start_color, end_color):
+        region = context.region
+        rv3d = context.region_data
 
-#     def paintVerts(self, context, start_point, end_point, start_color, end_color):
-#         region = context.region
-#         rv3d = context.region_data
+        obj = context.active_object
+        mesh = obj.data
 
-#         obj = context.active_object
-#         mesh = obj.data
+        bm = bmesh.new()  # create an empty BMesh
+        bm.from_mesh(mesh)  # fill it in from a Mesh
+        bm.verts.ensure_lookup_table()
 
-#         bm = bmesh.new()  # create an empty BMesh
-#         bm.from_mesh(mesh)  # fill it in from a Mesh
-#         bm.verts.ensure_lookup_table()
+        # List of structures containing 3d vertex and project 2d position of vertex
+        vertex_data = None # Will contain vert, and vert coordinates in 2d view space
+        if mesh.use_paint_mask_vertex: # Face masking not currently supported
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
+        else:
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
 
-#         # List of structures containing 3d vertex and project 2d position of vertex
-#         vertex_data = None # Will contain vert, and vert coordinates in 2d view space
-#         if mesh.use_paint_mask_vertex: # Face masking not currently supported
-#             vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
-#         else:
-#             vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
+        # Vertex transformation math
+        down_vector = Vector((0, -1, 0))
+        direction_vector = Vector((end_point.x - start_point.x, end_point.y - start_point.y, 0)).normalized()
+        rotation = direction_vector.rotation_difference(down_vector)
 
-#         # Vertex transformation math
-#         down_vector = Vector((0, -1, 0))
-#         direction_vector = Vector((end_point.x - start_point.x, end_point.y - start_point.y, 0)).normalized()
-#         rotation = direction_vector.rotation_difference(down_vector)
+        translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
+        inverse_translantion_matrix = translation_matrix.inverted()
+        rotation_matrix = rotation.to_matrix().to_4x4()
+        combinedMat = inverse_translantion_matrix * rotation_matrix * translation_matrix
 
-#         translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
-#         inverse_translantion_matrix = translation_matrix.inverted()
-#         rotation_matrix = rotation.to_matrix().to_4x4()
-#         combinedMat = inverse_translantion_matrix * rotation_matrix * translation_matrix
+        transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
+        transEnd = combinedMat * end_point.to_4d()
+        minY = transStart.y
+        maxY = transEnd.y
+        heightTrans = maxY - minY  # Get the height of transformed vector
 
-#         transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
-#         transEnd = combinedMat * end_point.to_4d()
-#         minY = transStart.y
-#         maxY = transEnd.y
-#         heightTrans = maxY - minY  # Get the height of transformed vector
+        # Calculate hue, saturation and value shift for blending
+        c1_hue = start_color.h
+        c2_hue = end_color.h
+        hue_separation = c2_hue - c1_hue
+        if hue_separation > 0.5:
+            hue_separation = hue_separation - 1
+        elif hue_separation < -0.5:
+            hue_separation = hue_separation + 1
+        c1_sat = start_color.s
+        sat_separation = end_color.s - c1_sat
+        c1_val = start_color.v
+        val_separation = end_color.v - c1_val
 
-#         # Calculate hue, saturation and value shift for blending
-#         c1_hue = start_color.h
-#         c2_hue = end_color.h
-#         hue_separation = c2_hue - c1_hue
-#         if hue_separation > 0.5:
-#             hue_separation = hue_separation - 1
-#         elif hue_separation < -0.5:
-#             hue_separation = hue_separation + 1
-#         c1_sat = start_color.s
-#         sat_separation = end_color.s - c1_sat
-#         c1_val = start_color.v
-#         val_separation = end_color.v - c1_val
+        color_layer = bm.loops.layers.color.active
 
-#         color_layer = bm.loops.layers.color.active
+        for data in vertex_data:
+            vertex = data[0]
+            vertCo4d = Vector((data[1].x, data[1].y, 0))
+            transVec = combinedMat * vertCo4d
 
-#         for data in vertex_data:
-#             vertex = data[0]
-#             vertCo4d = Vector((data[1].x, data[1].y, 0))
-#             transVec = combinedMat * vertCo4d
+            t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            color = Color((1, 0, 0))
+            # Hue wraps, and fmod doesn't work with negative values
+            color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
+            color.s = c1_sat + sat_separation * t
+            color.v = c1_val + val_separation * t
 
-#             t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
-#             color = Color((1, 0, 0))
-#             # Hue wraps, and fmod doesn't work with negative values
-#             color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
-#             color.s = c1_sat + sat_separation * t
-#             color.v = c1_val + val_separation * t
+            if mesh.use_paint_mask: # Masking by face
+                face_loops = [loop for loop in vertex.link_loops if loop.face.select] # Get only loops that belong to selected faces
+            else: # Masking by verts or no masking at all
+                face_loops = [loop for loop in vertex.link_loops] # Get remaining vert loops
 
-#             if mesh.use_paint_mask: # Masking by face
-#                 face_loops = [loop for loop in vertex.link_loops if loop.face.select] # Get only loops that belong to selected faces
-#             else: # Masking by verts or no masking at all
-#                 face_loops = [loop for loop in vertex.link_loops] # Get remaining vert loops
+            for loop in face_loops:
+                new_color = loop[color_layer]
+                new_color[:3] = color
+                loop[color_layer] = new_color
 
-#             for loop in face_loops:
-#                 new_color = loop[color_layer]
-#                 new_color[:3] = color
-#                 loop[color_layer] = new_color
+        bm.to_mesh(mesh)
+        bm.free()
+        bpy.ops.object.mode_set(mode='VERTEX_PAINT')
 
-#         bm.to_mesh(mesh)
-#         bm.free()
-#         bpy.ops.object.mode_set(mode='VERTEX_PAINT')
+    def axis_snap(self, start, end, delta):
+        if start.x - delta < end.x < start.x + delta:
+            return Vector((start.x, end.y))
+        if start.y - delta < end.y < start.y + delta:
+            return Vector((end.x, start.y))
+        return end
 
-#     def axis_snap(self, start, end, delta):
-#         if start.x - delta < end.x < start.x + delta:
-#             return Vector((start.x, end.y))
-#         if start.y - delta < end.y < start.y + delta:
-#             return Vector((end.x, start.y))
-#         return end
+    def modal(self, context, event):
+        context.area.tag_redraw()
 
-#     def modal(self, context, event):
-#         context.area.tag_redraw()
-#         delta = 20
+        if event.type in {'RIGHTMOUSE', 'ESC'}:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            return {'CANCELLED'}
 
-#         if event.type in {'RIGHTMOUSE', 'ESC'}:
-#             context.area.header_text_set()
-#             return {'CANCELLED'}
-#         elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-#             return {'PASS_THROUGH'} # Allow navigation
+        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'} # Allow navigation
 
-#         if self._line_draw_handle is None: # Drawing has not started
-#             if event.type == 'LEFTMOUSE':
-#                 self.start_point = Vector((event.mouse_region_x, event.mouse_region_y))
-#                 self.end_point = self.start_point # To prevent drawing line to random place
-#                 args = (self, context)
-#                 self._line_draw_handle = bpy.types.SpaceView3D.draw_handler_add(draw_line, args, 'WINDOW', 'POST_PIXEL')
-#         elif event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
-#             # Update and constrain end point
-#             self.end_point = Vector((event.mouse_region_x, event.mouse_region_y))
-#             if event.shift:
-#                 self.end_point = self.axis_snap(self.start_point, self.end_point, delta)
+        if event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
+            line_params = self.line_params
+            delta = 20
 
-#             if event.type == 'LEFTMOUSE': # Finish updating the line and paint the vertices
-#                 context.area.header_text_set()
+            # Update and constrain end point
+            start_point = line_params["coords"][0]
+            end_point = Vector((event.mouse_region_x, event.mouse_region_y))
+            if event.shift:
+                end_point = self.axis_snap(start_point, end_point, delta)
+            line_params["coords"] = [start_point, end_point]
 
-#                 if self.end_point == self.start_point:
-#                     return {'CANCELLED'}
+            if event.type == 'LEFTMOUSE': # Finish updating the line and paint the vertices
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
 
-#                 bpy.types.SpaceView3D.draw_handler_remove(self._line_draw_handle, 'WINDOW')
-#                 self._line_draw_handle = None
+                # Gradient will not work if there is no delta
+                if end_point == start_point:
+                    return {'CANCELLED'}
 
-#                 # Use color gradient where supported (unless we are in isolate mode)
-#                 start_color = Color((0, 0, 0))
-#                 end_color = Color((1, 1, 1))
-#                 isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
-#                 if isolate is None:
-#                     start_color = bpy.data.brushes['Draw'].color
-#                     end_color = bpy.data.brushes['Draw'].secondary_color
+                # Use color gradient or force greyscale in isolate mode
+                start_color = line_params["colors"][0]
+                end_color = line_params["colors"][1]
+                isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+                if isolate is not None:
+                    start_color = rgb_to_luminance(start_color)
+                    end_color = rgb_to_luminance(end_color)
 
-#                 self.paintVerts(context, self.start_point, self.end_point, start_color, end_color)
-#                 return {'FINISHED'}
+                self.paintVerts(context, start_point, end_point, start_color, end_color)
+                return {'FINISHED'}
 
-#         return {'RUNNING_MODAL'}
+        return {'RUNNING_MODAL'}
 
-#     def invoke(self, context, event):
-#         if context.area.type == 'VIEW_3D':
-#             context.window_manager.modal_handler_add(self)
-#             context.area.header_text_set("Draw a line by dragging in the 3D View. Hold Shift to snap, Esc to cancel.")
-#             return {'RUNNING_MODAL'}
-#         else:
-#             self.report({'WARNING'}, "View3D not found, cannot run operator")
-#             return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        if context.area.type == 'VIEW_3D':
+            # Create arguments to pass to the draw handler callback
+            mouse_position = Vector((event.mouse_region_x, event.mouse_region_y))
+            self.line_params = {
+                "coords": [mouse_position, mouse_position],
+                "colors": [bpy.data.brushes['Draw'].color,
+                           bpy.data.brushes['Draw'].secondary_color],
+                "width": 1,
+            }
+            args = (self, context, self.line_params, self.shader)
+
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_line_callback, args, 'WINDOW', 'POST_PIXEL')
+
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "View3D not found, cannot run operator")
+            return {'CANCELLED'}
+
 
 
 # Partly based on code by Bartosz Styperek
