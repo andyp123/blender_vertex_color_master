@@ -983,7 +983,7 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
     """Toggle foreground and background brush colors."""
     bl_idname = 'vertexcolormaster.brush_colors_flip'
     bl_label = "VCM Flip Brush Colors"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {'REGISTER'}
 
     def execute(self, context):
         brush = bpy.data.brushes['Draw']
