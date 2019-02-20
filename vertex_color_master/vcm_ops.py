@@ -18,6 +18,7 @@
 # <pep8 compliant>
 
 import bpy
+import math
 from bpy.props import *
 from .vcm_globals import *
 from .vcm_helpers import *
@@ -31,40 +32,51 @@ import random # for random color to mesh islands
 import gpu # used for drawing lines
 from gpu_extras.batch import batch_for_shader
 
-# draw line helper function required:
-# inputs: start, end, start_color, end_color, width
 
-def draw_line_callback(self, context, line_params, shader):
-    coord = line_params["coords"][1]
-    # mouse_str = str.format("mouse ({},{}) ", coord[0], coord[1])
-    # # print(mouse_str)
-
-    # font_id = 0  # XXX, need to find out how best to get this.
-
-    # # draw some text
-    # blf.position(font_id, 15, 30, 0)
-    # blf.size(font_id, 20, 72)
-    # blf.draw(font_id, mouse_str)
-
-    batch = batch_for_shader(shader, 'LINES', {
+def draw_gradient_callback(self, context, line_params, line_shader, circle_shader):
+    line_batch = batch_for_shader(line_shader, 'LINES', {
         "pos": line_params["coords"],
         "color": line_params["colors"]})
+    line_shader.bind()
+    line_batch.draw(line_shader)
 
-    shader.bind()
-    batch.draw(shader)
+    if circle_shader is not None:
+        a = line_params["coords"][0]
+        b = line_params["coords"][1]
+        radius = (b - a).length
+        steps = 50
+        circle_points = []
+        for i in range(steps+1):
+            angle = (2.0 * math.pi * i) / steps
+            point = Vector(int(a.x + radius * math.cos(angle)), int(a.y + radius * math.sin(angle)))
+            circle_points.append(point)
+
+        circle_batch = batch_for_shader(circle_shader, 'LINES' {
+            "pos": circle_points})
+        circle_shader.bind()
+        circle_shader.uniform_float("color", line_params["colors"][1])
+        circle_batch.draw(circle_shader)
 
 
 # This function from a script by Bartosz Styperek with modifications by me
-class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
+# Circular gradient based on code submitted by RylauChelmi
+class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     """Draw a line with the mouse to paint a vertex color gradient."""
-    bl_idname = "vertexcolormaster.linear_gradient"
-    bl_label = "VCM Linear Gradient Tool"
-    bl_description = "Paint linear vertex gradient."
+    bl_idname = "vertexcolormaster.gradient"
+    bl_label = "VCM Gradient Tool"
+    bl_description = "Paint vertex color gradient."
     bl_options = {"REGISTER", "UNDO"}
 
-    shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
+    line_shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
+    circle_shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
 
-    def paintVerts(self, context, start_point, end_point, start_color, end_color):
+    circular_gradient: BoolProperty(
+        name="Circular Gradient",
+        description="Paint a circular gradient",
+        default=False
+    )
+
+    def paintVerts(self, context, start_point, end_point, start_color, end_color, circular_gradient):
         region = context.region
         rv3d = context.region_data
 
@@ -88,15 +100,18 @@ class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
         rotation = direction_vector.rotation_difference(down_vector)
 
         translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
-        inverse_translantion_matrix = translation_matrix.inverted()
+        inverse_translation_matrix = translation_matrix.inverted()
         rotation_matrix = rotation.to_matrix().to_4x4()
-        combinedMat = inverse_translantion_matrix * rotation_matrix * translation_matrix
+        combinedMat = inverse_translation_matrix * rotation_matrix * translation_matrix
 
         transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
         transEnd = combinedMat * end_point.to_4d()
         minY = transStart.y
         maxY = transEnd.y
         heightTrans = maxY - minY  # Get the height of transformed vector
+
+        transVector = transEnd - transStart
+        transLen = transVector.length
 
         # Calculate hue, saturation and value shift for blending
         c1_hue = start_color.h
@@ -118,7 +133,15 @@ class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
             vertCo4d = Vector((data[1].x, data[1].y, 0))
             transVec = combinedMat * vertCo4d
 
-            t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            t = 0 # abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+
+            if circular_gradient:
+                curVector = transVec.to_4d() - transStart
+                curLen = curVector.length
+                t = abs(max(min(curLen / transLen, 1), 0))
+            else:
+                t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+
             color = Color((1, 0, 0))
             # Hue wraps, and fmod doesn't work with negative values
             color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
@@ -182,7 +205,7 @@ class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
                     start_color = rgb_to_luminance(start_color)
                     end_color = rgb_to_luminance(end_color)
 
-                self.paintVerts(context, start_point, end_point, start_color, end_color)
+                self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient)
                 return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
@@ -196,18 +219,17 @@ class VERTEXCOLORMASTER_OT_LinearGradient(bpy.types.Operator):
                 "coords": [mouse_position, mouse_position],
                 "colors": [bpy.data.brushes['Draw'].color,
                            bpy.data.brushes['Draw'].secondary_color],
-                "width": 1,
+                "width": 1, # currently does nothing
             }
-            args = (self, context, self.line_params, self.shader)
+            args = (self, context, self.line_params, self.line_shader, (circle_shader if self.circular_gradient else None))
 
-            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_line_callback, args, 'WINDOW', 'POST_PIXEL')
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
 
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
-
 
 
 # Partly based on code by Bartosz Styperek

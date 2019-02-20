@@ -359,5 +359,5 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
             row = col.row(align=True)
             row.operator('vertexcolormaster.adjust_hsv', text="Adjust HSV")
         row = col.row(align=True)
-        # row.operator('vertexcolormaster.linear_gradient', "Gradient Tool")
+        row.operator('vertexcolormaster.gradient', "Gradient Tool")
         
