@@ -48,10 +48,10 @@ def draw_gradient_callback(self, context, line_params, line_shader, circle_shade
         circle_points = []
         for i in range(steps+1):
             angle = (2.0 * math.pi * i) / steps
-            point = Vector(int(a.x + radius * math.cos(angle)), int(a.y + radius * math.sin(angle)))
+            point = Vector((a.x + radius * math.cos(angle), a.y + radius * math.sin(angle)))
             circle_points.append(point)
 
-        circle_batch = batch_for_shader(circle_shader, 'LINES', {
+        circle_batch = batch_for_shader(circle_shader, 'LINE_LOOP', {
             "pos": circle_points})
         circle_shader.bind()
         circle_shader.uniform_float("color", line_params["colors"][1])
@@ -70,7 +70,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     _handle = None
 
     line_shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
-    circle_shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
+    circle_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
 
     circular_gradient: BoolProperty(
         name="Circular Gradient",
@@ -185,7 +185,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                                bpy.data.brushes['Draw'].secondary_color[:] + (1.0,)],
                     "width": 1, # currently does nothing
                 }
-                args = (self, context, self.line_params, self.line_shader, (circle_shader if self.circular_gradient else None))
+                args = (self, context, self.line_params, self.line_shader, self.circle_shader) # (circle_shader if self.circular_gradient else None))
                 self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
         else:
             # Update or confirm gradient end point
