@@ -333,20 +333,20 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
     def draw(self, context):
         layout = self.layout
 
-        layout.label("Randomization Parameters")
+        layout.label(text="Randomization Parameters")
 
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.prop(self, 'randomize_hue', "Randomize")
-        row.prop(self, 'base_hue', "H", slider=True)
+        row.prop(self, 'randomize_hue', text="Randomize")
+        row.prop(self, 'base_hue', text="H", slider=True)
         row = col.row(align=True)
-        row.prop(self, 'randomize_saturation', "Randomize")
-        row.prop(self, 'base_saturation', "S", slider=True)
+        row.prop(self, 'randomize_saturation', text="Randomize")
+        row.prop(self, 'base_saturation', text="S", slider=True)
         row = col.row(align=True)
-        row.prop(self, 'randomize_value', "Randomize")
-        row.prop(self, 'base_value', "V", slider=True)
+        row.prop(self, 'randomize_value', text="Randomize")
+        row.prop(self, 'base_value', text="V", slider=True)
 
-        layout.prop(self, 'random_seed', "Seed", slider=True)
+        layout.prop(self, 'random_seed', text="Seed", slider=True)
 
         layout.prop(self, 'order_based')
         layout.prop(self, 'merge_similar')
