@@ -25,6 +25,8 @@ from .vcm_helpers import (
     get_layer_info,
 )
 
+from mathutils import Color
+
 # VERTEXCOLORMASTER_Properties
 class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
@@ -64,23 +66,10 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         update=update_active_channels
     )
 
-    def update_brush_value(self, context):
-        if self.match_brush_to_active_channels:
-            return self.update_active_channels(context)
-
-        brush = bpy.data.brushes['Draw']
-        color = Color(brush.color)
-        color.v = self.brush_value
-        brush.color = color
-
-        return None
-
     def update_brush_value_isolate(self, context):
         brush = bpy.data.brushes['Draw']
-        color = Color(brush.color)
-        color.s = 0.0
-        color.v = self.brush_value_isolate
-        brush.color = color
+        v = self.brush_value_isolate
+        brush.color = Color((v, v, v))
 
         return None
 
@@ -91,19 +80,10 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         default=(1, 0, 0)
     )
 
-    brush_color_Secondary: FloatVectorProperty(
+    brush_secondary_color: FloatVectorProperty(
         name="Brush Secondary Color",
         description="Brush secondary color.",
         default=(1, 0, 0)
-    )
-
-    brush_value: FloatProperty(
-        name="Brush Value",
-        description="Value of the brush color.",
-        default=1.0,
-        min=0.0,
-        max=1.0,
-        update=update_brush_value
     )
 
     brush_value_isolate: FloatProperty(

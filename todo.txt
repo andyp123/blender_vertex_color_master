@@ -11,11 +11,8 @@ Look into how people may want to use vertex color and try to accomodate the use 
 
 + Vertex alpha painting is not working properly
 + Would be nice to be able to toggle face or vertex mask from VCM UI
-+ Add gradient tool back
-+ Add submitted circular gradient tool
 + changing value does not change brush color in isolate mode
 + see if I can fix rounding errors during UV>color translation
-+ make sure that apply isolate channel works properly and has elegant fallbacks when vcol data is renamed
 
 + material color to vertex color? bake or object material color?
 + view vertex color for multiple objects

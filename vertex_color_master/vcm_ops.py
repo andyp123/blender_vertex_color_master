@@ -868,7 +868,7 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
 
 
 class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
-    """Set vertex paint brush settings from panel buttons"""
+    """Set vertex paint brush settings"""
     bl_idname = 'vertexcolormaster.edit_brush_settings'
     bl_label = 'VCM Edit Brush Settings'
     bl_options = {'REGISTER', 'UNDO'}
@@ -969,6 +969,7 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
         mesh.vertex_colors.active = iso_vcol
         brush = bpy.data.brushes['Draw']
         settings.brush_color = brush.color
+        settings.brush_secondary_color = brush.secondary_color
         brush.color = [settings.brush_value_isolate] * 3
 
         return {'FINISHED'}
@@ -1003,7 +1004,7 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
 
         brush = bpy.data.brushes['Draw']
         brush.color = settings.brush_color
-        settings.update_brush_value(context)
+        brush.secondary_color = settings.brush_secondary_color
 
         if self.discard:
             mesh.vertex_colors.remove(iso_vcol)
