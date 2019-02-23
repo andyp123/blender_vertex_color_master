@@ -749,7 +749,7 @@ class VERTEXCOLORMASTER_OT_Fill(bpy.types.Operator):
         row.prop(self, 'fill_with_color')
         if self.fill_with_color:
             row = layout.row()
-            row.prop(self, 'fill_color', '')
+            row.prop(self, 'fill_color', text="")
 
 
 class VERTEXCOLORMASTER_OT_Invert(bpy.types.Operator):
