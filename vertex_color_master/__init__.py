@@ -17,9 +17,20 @@
 
 # <pep8 compliant>
 
+# reload submodules if the addon is reloaded 
+if "bpy" in locals():
+    import importlib
+    importlib.reload(vcm_globals)
+    importlib.reload(vcm_main)
+    importlib.reload(vcm_ops)
+    importlib.reload(vcm_helpers)
+
 import bpy
 from . import vcm_main
 from . import vcm_ops
+# not used in this file
+from . import vcm_globals
+from . import vcm_helpers
 
 bl_info = {
     "name": "Vertex Color Master",
