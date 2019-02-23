@@ -244,8 +244,8 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
             row = col.row(align=True)
             row.prop(settings, 'brush_value_isolate', text="Val", slider=True)
 
-        row = layout.row()
-        row.prop(brush, 'blend', text="Blend")
+        # row = layout.row()
+        # row.prop(brush, 'blend', text="Blend")
         col = layout.column(align=True)
         row = col.row(align=True)
         row.operator('vertexcolormaster.edit_brush_settings', text="Mix").blend_mode = 'MIX'
@@ -365,5 +365,7 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
             row = col.row(align=True)
             row.operator('vertexcolormaster.adjust_hsv', text="Adjust HSV")
         row = col.row(align=True)
-        row.operator('vertexcolormaster.gradient', text="Gradient Tool")
+        row.operator('vertexcolormaster.gradient', text="Linear Gradient").circular_gradient = False
+        row = col.row(align=True)
+        row.operator('vertexcolormaster.gradient', text="Circular Gradient").circular_gradient = True
         
