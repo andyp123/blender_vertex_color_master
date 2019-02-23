@@ -50,6 +50,15 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
         return None
 
+    def update_brush_value_isolate(self, context):
+        brush = bpy.data.brushes['Draw']
+        v1 = self.brush_value_isolate
+        v2 = self.brush_secondary_value_isolate
+        brush.color = Color((v1, v1, v1))
+        brush.secondary_color = Color((v2, v2, v2))
+
+        return None
+
     active_channels: EnumProperty(
         name="Active Channels",
         options={'ENUM_FLAG'},
@@ -66,13 +75,6 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         update=update_active_channels
     )
 
-    def update_brush_value_isolate(self, context):
-        brush = bpy.data.brushes['Draw']
-        v = self.brush_value_isolate
-        brush.color = Color((v, v, v))
-
-        return None
-
     # Used only to store the color between RGBA and isolate modes
     brush_color: FloatVectorProperty(
         name="Brush Color",
@@ -86,15 +88,22 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         default=(1, 0, 0)
     )
 
+    # Replacement for color in the isolate mode UI
     brush_value_isolate: FloatProperty(
         name="Brush Value",
         description="Value of the brush color.",
         default=1.0,
-        min=0.0,
-        max=1.0,
+        min=0.0, max=1.0,
         update=update_brush_value_isolate
     )
 
+    brush_secondary_value_isolate: FloatProperty(
+        name="Brush Value",
+        description="Value of the brush secondary color.",
+        default=0.0,
+        min=0.0, max=1.0,
+        update=update_brush_value_isolate
+    )
 
     def vcol_layer_items(self, context):
         obj = context.active_object
@@ -216,13 +225,16 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
             row.prop(brush, 'color', text="")
             row.prop(brush, 'secondary_color', text="")
             row.separator()
-            row.operator('paint.brush_colors_flip', text="", icon='FILE_REFRESH')
+            row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
             col.separator()
             row = col.row(align=False)
             row.operator('vertexcolormaster.quick_fill', text="Fill With Color").fill_color = brush.color
         else:
             row = col.row(align=True)
-            row.prop(settings, 'brush_value_isolate', text="Val", slider=True)
+            row.prop(settings, 'brush_value_isolate', text="F", slider=True)
+            row.prop(settings, 'brush_secondary_value_isolate', text="B", slider=True)
+            row.separator()
+            row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
 
         # row = layout.row()
         # row.prop(brush, 'blend', text="Blend")

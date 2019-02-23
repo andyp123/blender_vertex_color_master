@@ -10,8 +10,6 @@ Issues / TODO:
 Look into how people may want to use vertex color and try to accomodate the use cases
 
 + Vertex alpha painting is not working properly
-+ Would be nice to be able to toggle face or vertex mask from VCM UI
-+ changing value does not change brush color in isolate mode
 + see if I can fix rounding errors during UV>color translation
 
 + material color to vertex color? bake or object material color?

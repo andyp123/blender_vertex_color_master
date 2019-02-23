@@ -1026,3 +1026,28 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
         mesh.vertex_colors.remove(iso_vcol)
 
         return {'FINISHED'}
+
+
+# This also supports value flipping, but otherwise can be# replaced in UI with paint.brush_colors_flip
+class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
+    """Toggle foreground and background brush colors."""
+    bl_idname = 'vertexcolormaster.brush_colors_flip'
+    bl_label = "VCM Flip Brush Colors"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        brush = bpy.data.brushes['Draw']
+        settings = context.scene.vertex_color_master_settings
+
+        obj = context.active_object
+        if context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH':
+            if get_isolated_channel_ids(context.active_object.data.vertex_colors.active) is not None:
+                val = settings.brush_value_isolate
+                settings.brush_value_isolate = settings.brush_secondary_value_isolate
+                settings.brush_secondary_value_isolate = val
+
+        color = Color(brush.color)
+        brush.color = brush.secondary_color
+        brush.secondary_color = color
+
+        return {'FINISHED'}
