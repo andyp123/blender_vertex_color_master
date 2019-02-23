@@ -31,7 +31,7 @@ import random # for random color to mesh islands
 # # for gradient tool
 import gpu # used for drawing lines
 from gpu_extras.batch import batch_for_shader
-
+from bpy_extras import view3d_utils
 
 def draw_gradient_callback(self, context, line_params, line_shader, circle_shader):
     line_batch = batch_for_shader(line_shader, 'LINES', {
@@ -78,23 +78,30 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         default=False
     )
 
-    def paintVerts(self, context, start_point, end_point, start_color, end_color, circular_gradient):
+    use_hue_blend: BoolProperty(
+        name="Use Hue Blend",
+        description="Gradually blend start and end colors using full hue range instead of simple blend",
+        default=False
+    )
+
+    def paintVerts(self, context, start_point, end_point, start_color, end_color, circular_gradient=False, use_hue_blend=False):
         region = context.region
         rv3d = context.region_data
 
         obj = context.active_object
         mesh = obj.data
 
-        bm = bmesh.new()  # create an empty BMesh
-        bm.from_mesh(mesh)  # fill it in from a Mesh
+        # Create a new bmesh to work with
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
         bm.verts.ensure_lookup_table()
 
         # List of structures containing 3d vertex and project 2d position of vertex
         vertex_data = None # Will contain vert, and vert coordinates in 2d view space
         if mesh.use_paint_mask_vertex: # Face masking not currently supported
-            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts if v.select]
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world @ v.co)) for v in bm.verts if v.select]
         else:
-            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world * v.co)) for v in bm.verts]
+            vertex_data = [(v, view3d_utils.location_3d_to_region_2d(region, rv3d, obj.matrix_world @ v.co)) for v in bm.verts]
 
         # Vertex transformation math
         down_vector = Vector((0, -1, 0))
@@ -104,10 +111,10 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         translation_matrix = Matrix.Translation(Vector((-start_point.x, -start_point.y, 0)))
         inverse_translation_matrix = translation_matrix.inverted()
         rotation_matrix = rotation.to_matrix().to_4x4()
-        combinedMat = inverse_translation_matrix * rotation_matrix * translation_matrix
+        combinedMat = inverse_translation_matrix @ rotation_matrix @ translation_matrix
 
-        transStart = combinedMat * start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
-        transEnd = combinedMat * end_point.to_4d()
+        transStart = combinedMat @ start_point.to_4d() # Transform drawn line : rotate it to align to horizontal line
+        transEnd = combinedMat @ end_point.to_4d()
         minY = transStart.y
         maxY = transEnd.y
         heightTrans = maxY - minY  # Get the height of transformed vector
@@ -116,26 +123,29 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         transLen = transVector.length
 
         # Calculate hue, saturation and value shift for blending
-        c1_hue = start_color.h
-        c2_hue = end_color.h
-        hue_separation = c2_hue - c1_hue
-        if hue_separation > 0.5:
-            hue_separation = hue_separation - 1
-        elif hue_separation < -0.5:
-            hue_separation = hue_separation + 1
-        c1_sat = start_color.s
-        sat_separation = end_color.s - c1_sat
-        c1_val = start_color.v
-        val_separation = end_color.v - c1_val
+        if use_hue_blend:
+            start_color = Color(start_color[:3])
+            end_color = Color(end_color[:3])
+            c1_hue = start_color.h
+            c2_hue = end_color.h
+            hue_separation = c2_hue - c1_hue
+            if hue_separation > 0.5:
+                hue_separation = hue_separation - 1
+            elif hue_separation < -0.5:
+                hue_separation = hue_separation + 1
+            c1_sat = start_color.s
+            sat_separation = end_color.s - c1_sat
+            c1_val = start_color.v
+            val_separation = end_color.v - c1_val
 
         color_layer = bm.loops.layers.color.active
 
         for data in vertex_data:
             vertex = data[0]
             vertCo4d = Vector((data[1].x, data[1].y, 0))
-            transVec = combinedMat * vertCo4d
+            transVec = combinedMat @ vertCo4d
 
-            t = 0 # abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
+            t = 0
 
             if circular_gradient:
                 curVector = transVec.to_4d() - transStart
@@ -145,10 +155,15 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                 t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
 
             color = Color((1, 0, 0))
-            # Hue wraps, and fmod doesn't work with negative values
-            color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
-            color.s = c1_sat + sat_separation * t
-            color.v = c1_val + val_separation * t
+            if use_hue_blend:
+                # Hue wraps, and fmod doesn't work with negative values
+                color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
+                color.s = c1_sat + sat_separation * t
+                color.v = c1_val + val_separation * t
+            else:
+                color.r = start_color[0] + (end_color[0] - start_color[0]) * t
+                color.g = start_color[1] + (end_color[1] - start_color[1]) * t
+                color.b = start_color[2] + (end_color[2] - start_color[2]) * t
 
             if mesh.use_paint_mask: # Masking by face
                 face_loops = [loop for loop in vertex.link_loops if loop.face.select] # Get only loops that belong to selected faces
@@ -185,7 +200,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                                bpy.data.brushes['Draw'].secondary_color[:] + (1.0,)],
                     "width": 1, # currently does nothing
                 }
-                args = (self, context, self.line_params, self.line_shader, self.circle_shader) # (circle_shader if self.circular_gradient else None))
+                args = (self, context, self.line_params, self.line_shader, (circle_shader if self.circular_gradient else None))
                 self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
         else:
             # Update or confirm gradient end point
@@ -205,18 +220,20 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                     self._handle = None
 
                     # Gradient will not work if there is no delta
-                    if end_point != start_point:
+                    if end_point == start_point:
                         return {'CANCELLED'}
 
                     # Use color gradient or force greyscale in isolate mode
                     start_color = line_params["colors"][0]
                     end_color = line_params["colors"][1]
                     isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+                    use_hue_blend = self.use_hue_blend
                     if isolate is not None:
-                        start_color = rgb_to_luminance(start_color)
-                        end_color = rgb_to_luminance(end_color)
+                        start_color = [rgb_to_luminosity(start_color)] * 3
+                        end_color = [rgb_to_luminosity(end_color)] * 3
+                        use_hue_blend = False
 
-                    self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient)
+                    self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient, use_hue_blend)
                     return {'FINISHED'}            
 
         # Allow camera navigation
