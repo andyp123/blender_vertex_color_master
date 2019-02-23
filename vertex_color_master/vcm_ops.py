@@ -1040,14 +1040,17 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
         settings = context.scene.vertex_color_master_settings
 
         obj = context.active_object
-        if context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH':
-            if get_isolated_channel_ids(context.active_object.data.vertex_colors.active) is not None:
-                val = settings.brush_value_isolate
-                settings.brush_value_isolate = settings.brush_secondary_value_isolate
-                settings.brush_secondary_value_isolate = val
-
-        color = Color(brush.color)
-        brush.color = brush.secondary_color
-        brush.secondary_color = color
+        if context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH' \
+            and get_isolated_channel_ids(context.active_object.data.vertex_colors.active) is not None:
+                v1 = settings.brush_value_isolate
+                v2 = settings.brush_secondary_value_isolate
+                settings.brush_value_isolate = v2
+                settings.brush_secondary_value_isolate = v1
+                brush.color = Color((v2, v2, v2))
+                brush.secondary_color = Color((v1, v1, v1))
+        else:
+            color = Color(brush.color)
+            brush.color = brush.secondary_color
+            brush.secondary_color = color
 
         return {'FINISHED'}
