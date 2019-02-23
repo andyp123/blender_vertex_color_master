@@ -200,7 +200,8 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                                bpy.data.brushes['Draw'].secondary_color[:] + (1.0,)],
                     "width": 1, # currently does nothing
                 }
-                args = (self, context, self.line_params, self.line_shader, (circle_shader if self.circular_gradient else None))
+                args = (self, context, self.line_params, self.line_shader,
+                    (self.circle_shader if self.circular_gradient else None))
                 self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
         else:
             # Update or confirm gradient end point
