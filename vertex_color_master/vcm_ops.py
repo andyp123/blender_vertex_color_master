@@ -857,13 +857,13 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
     def draw(self, context):
         layout = self.layout
 
-        layout.label("Input Range")
-        layout.prop(self, 'min0', "Min", slider=True)
-        layout.prop(self, 'max0', "Max", slider=True)
+        layout.label(text="Input Range")
+        layout.prop(self, 'min0', text="Min", slider=True)
+        layout.prop(self, 'max0', text="Max", slider=True)
 
-        layout.label("Output Range")
-        layout.prop(self, 'min1', "Min", slider=True)
-        layout.prop(self, 'max1', "Max", slider=True)
+        layout.label(text="Output Range")
+        layout.prop(self, 'min1', text="Min", slider=True)
+        layout.prop(self, 'max1', text="Max", slider=True)
 
 
 class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
