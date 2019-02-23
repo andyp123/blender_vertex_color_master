@@ -87,7 +87,13 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
     # Used only to store the color between RGBA and isolate modes
     brush_color: FloatVectorProperty(
         name="Brush Color",
-        description="Color of the brush.",
+        description="Brush primary color.",
+        default=(1, 0, 0)
+    )
+
+    brush_color_Secondary: FloatVectorProperty(
+        name="Brush Secondary Color",
+        description="Brush secondary color.",
         default=(1, 0, 0)
     )
 
@@ -230,7 +236,7 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
             row.prop(brush, 'color', text="")
             row.prop(brush, 'secondary_color', text="")
             row.separator()
-            row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
+            row.operator('paint.brush_colors_flip', text="", icon='FILE_REFRESH')
             col.separator()
             row = col.row(align=False)
             row.operator('vertexcolormaster.quick_fill', text="Fill With Color").fill_color = brush.color

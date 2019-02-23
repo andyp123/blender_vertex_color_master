@@ -1007,20 +1007,3 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
         mesh.vertex_colors.remove(iso_vcol)
 
         return {'FINISHED'}
-
-
-# TODO: Remove this once 2.79.1 is released. 2.79.0 compatibility function.
-# replace in UI with paint.brush_colors_flip
-class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
-    """Toggle foreground and background brush colors."""
-    bl_idname = 'vertexcolormaster.brush_colors_flip'
-    bl_label = "VCM Flip Brush Colors"
-    bl_options = {'REGISTER'}
-
-    def execute(self, context):
-        brush = bpy.data.brushes['Draw']
-        color = Color(brush.color)
-        brush.color = brush.secondary_color
-        brush.secondary_color = color
-
-        return {'FINISHED'}
