@@ -22,11 +22,13 @@ if "bpy" in locals():
     import importlib
     importlib.reload(vcm_globals)
     importlib.reload(vcm_main)
+    importlib.reload(vcm_menus)
     importlib.reload(vcm_ops)
     importlib.reload(vcm_helpers)
 
 import bpy
 from . import vcm_main
+from . import vcm_menus
 from . import vcm_ops
 # not used in this file
 from . import vcm_globals
@@ -47,7 +49,6 @@ bl_info = {
 
 classes = (
     vcm_main.VertexColorMasterProperties,
-    vcm_main.VERTEXCOLORMASTER_PT_MainPanel,
     vcm_ops.VERTEXCOLORMASTER_OT_QuickFill,
     vcm_ops.VERTEXCOLORMASTER_OT_Fill,
     vcm_ops.VERTEXCOLORMASTER_OT_Invert,
@@ -67,6 +68,8 @@ classes = (
     vcm_ops.VERTEXCOLORMASTER_OT_AdjustHSV,
     vcm_ops.VERTEXCOLORMASTER_OT_FlipBrushColors,
     vcm_ops.VERTEXCOLORMASTER_OT_Gradient,
+    vcm_menus.VERTEXCOLORMASTER_PT_MainPanel,
+    vcm_menus.VERTEXCOLORMASTER_MT_PieMain,
 )
 
 def register():
