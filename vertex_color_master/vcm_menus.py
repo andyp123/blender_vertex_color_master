@@ -77,38 +77,23 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
         row = col.row(align=True)
         row.operator('vertexcolormaster.apply_isolated', text="Discard Changes").discard = True
         layout.separator()
-        draw_brush_settings(context, layout, obj, settings, mode='GRAYSCALE')
+        draw_brush_settings(context, layout, obj, settings, mode='ISOLATE')
         layout.separator()
         draw_active_channel_operations(context, layout, obj, settings, mode='ISOLATE')
         layout.separator()
         draw_misc_operations(context, layout, obj, settings, mode='ISOLATE')
 
-# bind these to shortcuts to open menus
-# bpy.ops.wm.call_menu(name="")
-# bpy.ops.wm.call_menu_pie(name="")
-# bpy.ops.wm.call_panel(name="", keep_open=True)
-
-# Can perhaps make popup panels. See here:
-# https://docs.blender.org/api/blender2.8/bpy.types.Panel.html
-# bl_ui_units_x to set width of panel
-
-# sublayouts
-# box, column, row, menu_pie, column_flow, grid_flow, split
-
-# pie options will be placed in L,R,B,T,TL,TR,BL,BR order
-# pie.operator_enum("mesh.select_mode", "type")
 
 class VERTEXCOLORMASTER_MT_PieMain(Menu):
     # label is displayed at the center of the pie menu.
-    bl_label = ""
+    bl_label = "Vertex Color Master"
     bl_idname = "vertexcolormaster.pie_main"
 
-    # this should check the mouse cursor is over a view3d panel, vertex paint mode is enabled
-    # and an object is being edited that has vertex colors
-    # @classmethod
-    # def poll(cls, context):
-    #     obj = context.active_object
-    #     return obj is not None and obj.type == 'MESH'
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        # FIXME: this is not working for some reason...
+        return obj is not None # and obj.mode is 'VERTEX_PAINT'
 
     def draw(self, context):
         layout = self.layout
@@ -122,34 +107,46 @@ class VERTEXCOLORMASTER_MT_PieMain(Menu):
 
         # need container layouts for each pie direction (L,R,B,T,TL,TR,BL,BR order)
         col = pie.column() # Left
-        draw_brush_settings(context, col, obj, settings, mode)
+        draw_brush_settings(context, col, obj, settings, mode, pie=True)
+        # col.separator()
         col = pie.column() # Right
-        draw_misc_operations(context, col, obj, settings, mode)
+        draw_active_channel_operations(context, col, obj, settings, mode, pie=True)
+        col.separator()
+        draw_misc_operations(context, col, obj, settings, mode, pie=True)
         col = pie.column() # Bottom
-        if isolate is None:
-            draw_src_dst_operations(context, col, obj, settings)
         col = pie.column() # Top
-        row = col.row()
-        row.label(text="Vertex Color Master")
-
-        # row = col.row(align=True)
-        # row.operator("vertexcolormaster.fill", text="Fill").value = 1.0
-        # row.operator("vertexcolormaster.fill", text="Clear").value = 0.0
-        # row = col.row(align=True)
-        # row.operator("vertexcolormaster.invert", text="Invert")
-        # row.operator("vertexcolormaster.posterize", text="Posterize")
+        if isolate is None:
+            row = col.row()
+            # row.alignment = 'CENTER'
+            row.emboss = 'RADIAL_MENU'
+            row.label(text="Isolate Channel")
+            row = col.row()
+            row.operator('vertexcolormaster.isolate_channel', text="R").src_channel_id = red_id
+            row.operator('vertexcolormaster.isolate_channel', text="G").src_channel_id = green_id
+            row.operator('vertexcolormaster.isolate_channel', text="B").src_channel_id = blue_id
+            row.operator('vertexcolormaster.isolate_channel', text="A").src_channel_id = alpha_id
+        else:
+            row = col.row()
+            row.emboss = 'RADIAL_MENU'
+            row.label(text="Isolated '{0}.{1}'".format(isolate[0], isolate[1]))            
+            row = col.row(align=True)
+            row.operator('vertexcolormaster.apply_isolated', text="Apply Changes").discard = False
+            row.operator('vertexcolormaster.apply_isolated', text="Discard Changes").discard = True
 
 
 # Menu functions for drawing sub-panels
-def draw_brush_settings(context, layout, obj, settings, mode='STANDARD'):
+def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=False):
     brush = bpy.data.brushes['Draw']
-    col = layout.column(align=True)
+    col = layout.column()
     row = col.row()
+    if pie:
+        row.emboss = 'RADIAL_MENU'
     row.label(text="Brush Settings")
 
     if mode == 'STANDARD':
-        row = col.row(align=False)
-        row.prop(settings, 'match_brush_to_active_channels')
+        if not pie:
+            row = col.row(align=False)
+            row.prop(settings, 'match_brush_to_active_channels')
         row = col.row(align=True)
         row.prop(brush, 'color', text="")
         row.prop(brush, 'secondary_color', text="")
@@ -157,16 +154,16 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD'):
         row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
         col.separator()
         row = col.row(align=False)
-        row.operator('vertexcolormaster.quick_fill', text="Fill With Color").fill_color = brush.color
+        row.operator('paint.vertex_color_set', text="Fill With Color")
     else:
         row = col.row(align=True)
         row.prop(settings, 'brush_value_isolate', text="F", slider=True)
         row.prop(settings, 'brush_secondary_value_isolate', text="B", slider=True)
         row.separator()
         row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
+        row = col.row(align=False)
+        row.operator('paint.vertex_color_set', text="Fill With Value")
 
-    # row = layout.row()
-    # row.prop(brush, 'blend', text="Blend")
     col = layout.column(align=True)
     row = col.row(align=True)
     row.operator('vertexcolormaster.edit_brush_settings', text="Mix").blend_mode = 'MIX'
@@ -177,10 +174,16 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD'):
     row.prop(brush, 'strength', text="Strength")
 
 
-def draw_active_channel_operations(context, layout, obj, settings, mode='STANDARD'):
-    col = layout.column(align=True)
+def draw_active_channel_operations(context, layout, obj, settings, mode='STANDARD', pie=False):
+    if pie:
+        if mode == 'STANDARD':
+            return None
+        row = layout.row()
+        row.emboss = 'RADIAL_MENU'
+        row.label(text="Basic Operations")
 
     if mode == 'STANDARD':
+        col = layout.column(align=True)
         row = col.row()
         row.label(text="Active Channels")
         row = col.row(align=True)
@@ -199,11 +202,16 @@ def draw_active_channel_operations(context, layout, obj, settings, mode='STANDAR
         row.enabled = can_isolate
 
     col = layout.column(align=True)
+
     row = col.row(align=True)
     row.operator('vertexcolormaster.fill', text='Fill').value = 1.0
     row.operator('vertexcolormaster.fill', text='Clear').value = 0.0
     row = col.row(align=True)
-    row.operator('vertexcolormaster.invert', text='Invert')
+    if mode == 'STANDARD':
+        row.operator('vertexcolormaster.invert', text='Invert')
+    else:
+        # Use built-in, as it's much faster
+        row.operator('paint.vertex_color_invert', text="Invert")
     row.operator('vertexcolormaster.posterize', text='Posterize')
     row = col.row(align=True)
     row.operator('vertexcolormaster.remap', text='Remap')
@@ -274,17 +282,27 @@ def draw_src_dst_operations(context, layout, obj, settings):
         row.label(text="Src > Dst is unsupported")
 
 
-def draw_misc_operations(context, layout, obj, settings, mode='STANDARD'):
+def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=False):
     col = layout.column(align=True)
     row = col.row()
+    if pie:
+        row.emboss = 'RADIAL_MENU'
     row.label(text="Misc Operations")
 
     col = layout.column(align=True)
     if mode == 'STANDARD':
         row = col.row(align=True)
-        row.operator('vertexcolormaster.randomize_mesh_island_colors', text="Randomize Mesh Island Colors")
+        row.operator('vertexcolormaster.randomize_mesh_island_colors', text="Random Mesh Island Colors")
         row = col.row(align=True)
-        row.operator('vertexcolormaster.adjust_hsv', text="Adjust HSV")
+        # vertexcolormaster.adjust_hsv is too slow
+        row.operator('paint.vertex_color_hsv', text="Adjust HSV")
+    else:
+        row = col.row(align=True)
+        row.operator('paint.vertex_color_dirt', text="Dirty Vertex Colors")
+        row = col.row(align=True)
+        row.operator('paint.vertex_color_brightness_contrast', text="Brightness/Contrast")
+
+    col = layout.column(align=True)
     row = col.row(align=True)
     row.operator('vertexcolormaster.gradient', text="Linear Gradient").circular_gradient = False
     row = col.row(align=True)
