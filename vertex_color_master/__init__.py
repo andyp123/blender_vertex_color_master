@@ -72,6 +72,9 @@ classes = (
     vcm_menus.VERTEXCOLORMASTER_MT_PieMain,
 )
 
+# used to unregister bound shortcuts when the addon is disabled / removed
+addon_shortcuts = []
+
 def register():
     # add operators
     for c in classes:
@@ -81,6 +84,15 @@ def register():
     bpy.types.Scene.vertex_color_master_settings = bpy.props.PointerProperty(
         type=vcm_main.VertexColorMasterProperties)
 
+    # register shortcuts
+    wm = bpy.context.window_manager
+    if wm.keyconfigs.addon:
+        km = wm.keyconfigs.addon.keymaps.new(name='Vertex Paint')
+        kmi = km.keymap_items.new('wm.call_menu_pie', 'V', 'PRESS')
+        kmi.properties.name = "vertexcolormaster.pie_main"
+        kmi.active = True
+        addon_keymaps.append((km, kmi))  
+
 def unregister():
     # remove operators
     for c in reversed(classes):
@@ -88,6 +100,17 @@ def unregister():
 
     # unregister properties
     del bpy.types.Scene.vertex_color_master_settings
+
+    # unregister shortcuts
+    wm = bpy.context.window_manager
+    if wm.keyconfigs.addon:
+        for km in addon_keymaps:
+            for kmi in km.keymap_items:
+                km.keymap_items.remove(kmi)
+
+            wm.keyconfigs.addon.keymaps.remove(km)
+
+    del addon_keymaps[:]
 
 # allows running addon from text editor
 if __name__ == '__main__':
