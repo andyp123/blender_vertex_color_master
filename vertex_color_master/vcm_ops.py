@@ -890,6 +890,7 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
          # This changed between Blender 2.79 -> 2.80, but keeping blur here
         if self.blend_mode == 'BLUR':
             brush.vertex_tool = 'BLUR'
+            brush.blend = 'MIX'
         else:
             brush.vertex_tool = 'DRAW'
             brush.blend = self.blend_mode
