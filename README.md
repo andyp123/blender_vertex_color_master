@@ -11,6 +11,7 @@ __Note:__ This add-on requires [Blender 2.80](https://builder.blender.org/downlo
 3. Press the 'Install...' button and select the .zip file you downloaded.
 4. Enable the add-on and save preferences if you want it to always be available.
 
+---
 
 ## Usage
 This add-on is mostly designed for people who use vertex colors as extra non-color data, such as artists making models for games, where such data can be useful for creating interesting shader effects, or for storing baked light data. The tools provided by this add-on allow the user to fill, invert, posterize or remap individual color channels, as well as copy or swap channels between layers and exchange vertex weight and UV data to and from color channels.
@@ -19,6 +20,7 @@ The add-on will appear in the details panel (press 'n' to open) to the right of 
 
 ![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/standard_menu.png)
 
+---
 
 ## Brush Settings
 Brush settings contains a few of the most useful brush options so that the add-on can be open and useful without needing the full brush menu to be open. This way there is more space in the Tools panel, even on smaller displays.
@@ -35,6 +37,7 @@ This will ignore any selected active channels and fill the mesh with the current
 
 + __Fill Color__ (White) - Color with which to fill the mesh or selection (if using selection mask).
 
+---
 
 ## Active Channels
 The active channels section allows the user to enable or disable channels that the functions directly under the active channels will work on. For example, enabling only the R channel will mean that it is the only channel to be affected when the Invert button is pressed, etc. Different combinations of RGBA can be selected by holding the shift key while clicking on the channel buttons.
@@ -43,12 +46,12 @@ As channels are activated and deactivated, the brush color will update to match 
 
 __Note:__ At the time of writing, Blender 2.80 does not support rendering or painting with vertex alpha, but the alpha values are stored in the vertex color data correctly. This will hopefully be improved in the future, but for now, alpha data can be edited or viewed by isolating the A channel.
 
+![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/isolate_menu.png)
+
 ### Isolate Active Channel
 When a single channel is selected, the option to isolate it and work in grayscale mode becomes available. Simply press the 'Isolate Active Channel' button and the active channel will be isolated and the Vertex Color Master UI will change to reflect this. Once in isolate channel mode, the UI will change to reflect this and the color picker will change to grayscale value sliders. Once changes to the channel have been made, they can be applied by pressing the 'Apply Changes' button, or discarded by pressing 'Discard Changes' instead.
 
 + __Channel__ (R) - The channel that was isolated can be changed by selecting a different one.
-
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/isolate_menu.png)
 
 ### Fill / Clear
 Fill sets the value of the currently active channel(s) to 1, whereas Clear will set it to 0.
@@ -78,6 +81,7 @@ Remap the value of the currently active channel(s). This function takes values i
 
 + __Output Range Min__ (1.0) - Maximum value of the output range.
 
+---
 
 ## Data Transfer
 This section allows quick transfer of data between different color layers, vertex groups and uv layers on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled. If a UV layer is selected (UVs are prefixed with 'UV:'), channels will not be selectable at all.
@@ -118,6 +122,7 @@ Copy the weight value of the uv layer in the 'Src' layer to the 'Dst' channel.
 ### Src to UVs
 Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 
+---
 
 ## Misc Operations
 The 'Misc Operations' section contains features unrelated to the main features of the addon.
@@ -172,6 +177,7 @@ When enabled, the gradient tool allows you to draw a line representing the start
 ### Circular Gradient
 The circular gradient tool is similar to the gradient tool, but draws a radial gradient, with the center at the first position clicked, and edge at the second.
 
+---
 
 ## Pie Menus
 Most of the features of the addon can also be accessed from a pie menu that is bound to the 'V' key. The pie menu appears as shown in the image below.
@@ -182,6 +188,7 @@ When in isolate mode, the pie menu is slightly different, as shown in the follow
 
 ![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/isolate_pie.png)
 
+---
 
 ## Planned / Possible Features
 * Add function to set UV islands to random colors.
