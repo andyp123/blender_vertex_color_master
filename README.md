@@ -32,7 +32,7 @@ One of the key features of the addon is its [isolate workflow](#Isolate-Active-C
 
 The add-on will appear in the details panel (press 'n' to open) to the right of the 3D view when in vertex paint mode as shown in the following image.
 
-![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/standard_menu.png)
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/standard_menu.png)
 
 ---
 
@@ -62,7 +62,7 @@ As channels are activated and deactivated, the brush color will update to match 
 
 __Note:__ At the time of writing, Blender 2.80 does not support rendering or painting with vertex alpha, but the alpha values are stored in the vertex color data correctly. This will hopefully be improved in the future, but for now, alpha data can be edited or viewed by isolating the A channel.
 
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/isolate_menu.png)
+![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_menu.png)
 
 ### Isolate Active Channel
 When a single channel is selected, the option to isolate it and work in grayscale mode becomes available. Simply press the 'Isolate Active Channel' button and the active channel will be isolated and the Vertex Color Master UI will change to reflect this. Once in isolate channel mode, the UI will change to reflect this and the color picker will change to grayscale value sliders. Once changes to the channel have been made, they can be applied by pressing the 'Apply Changes' button, or discarded by pressing 'Discard Changes' instead.
@@ -201,11 +201,11 @@ The circular gradient tool is similar to the gradient tool, but draws a radial g
 ## Pie Menus
 Most of the features of the addon can also be accessed from a pie menu that is bound to the 'V' key. The pie menu appears as shown in the image below.
 
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/standard_pie.png)
+![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/standard_pie.png)
 
 When in isolate mode, the pie menu is slightly different, as shown in the following image.
 
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.80/README_img/isolate_pie.png)
+![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_pie.png)
 
 ---
 
