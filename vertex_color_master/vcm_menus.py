@@ -36,7 +36,7 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category =  'View'
     bl_context = 'vertexpaint'
-    bl_options = {'DEFAULT_CLOSED'}
+    # bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
