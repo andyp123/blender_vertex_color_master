@@ -296,11 +296,10 @@ def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=Fa
         row = col.row(align=True)
         # vertexcolormaster.adjust_hsv is too slow
         row.operator('paint.vertex_color_hsv', text="Adjust HSV")
-    else:
-        row = col.row(align=True)
-        row.operator('paint.vertex_color_dirt', text="Dirty Vertex Colors")
-        row = col.row(align=True)
-        row.operator('paint.vertex_color_brightness_contrast', text="Brightness/Contrast")
+    row = col.row(align=True)
+    row.operator('paint.vertex_color_brightness_contrast', text="Brightness/Contrast")
+    row = col.row(align=True)
+    row.operator('paint.vertex_color_dirt', text="Dirty Vertex Colors")
 
     col = layout.column(align=True)
     row = col.row(align=True)
