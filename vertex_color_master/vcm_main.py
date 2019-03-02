@@ -26,7 +26,7 @@ from .vcm_globals import *
 class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
     def update_active_channels(self, context):
-        if not self.match_brush_to_active_channels:
+        if self.use_grayscale or not self.match_brush_to_active_channels:
             return None
 
         active_channels = self.active_channels
@@ -67,6 +67,12 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         default=True,
         description="Change the brush color to match the active channels.",
         update=update_active_channels
+    )
+
+    use_grayscale: BoolProperty(
+        name="Use Grayscale",
+        default=False,
+        description="Show grayscale values instead of RGB colors.",
     )
 
     # Used only to store the color between RGBA and isolate modes

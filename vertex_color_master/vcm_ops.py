@@ -1043,7 +1043,8 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
 
         obj = context.active_object
         if context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH' \
-            and get_isolated_channel_ids(context.active_object.data.vertex_colors.active) is not None:
+            and get_isolated_channel_ids(context.active_object.data.vertex_colors.active) is not None \
+            or settings.use_grayscale:
                 v1 = settings.brush_value_isolate
                 v2 = settings.brush_secondary_value_isolate
                 settings.brush_value_isolate = v2

@@ -21,10 +21,10 @@
 if "bpy" in locals():
     import importlib
     importlib.reload(vcm_globals)
+    importlib.reload(vcm_helpers)
     importlib.reload(vcm_main)
     importlib.reload(vcm_menus)
     importlib.reload(vcm_ops)
-    importlib.reload(vcm_helpers)
 
 import bpy
 from . import vcm_main
@@ -73,7 +73,7 @@ classes = (
 )
 
 # used to unregister bound shortcuts when the addon is disabled / removed
-addon_shortcuts = []
+addon_keymaps = []
 
 def register():
     # add operators
@@ -88,10 +88,15 @@ def register():
     wm = bpy.context.window_manager
     if wm.keyconfigs.addon:
         km = wm.keyconfigs.addon.keymaps.new(name='Vertex Paint')
+        # pie menu
         kmi = km.keymap_items.new('wm.call_menu_pie', 'V', 'PRESS')
         kmi.properties.name = "vertexcolormaster.pie_main"
         kmi.active = True
-        addon_keymaps.append((km, kmi))  
+        addon_keymaps.append((km, kmi))
+        # override 'x' to use VCM flip brush colors
+        kmi = km.keymap_items.new('vertexcolormaster.brush_colors_flip', 'X', 'PRESS')
+        kmi.active = True
+        addon_keymaps.append((km, kmi))
 
 def unregister():
     # remove operators

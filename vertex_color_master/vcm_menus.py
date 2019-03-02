@@ -143,19 +143,13 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=Fal
         row.emboss = 'RADIAL_MENU'
     row.label(text="Brush Settings")
 
-    if mode == 'STANDARD':
-        if not pie:
-            row = col.row(align=False)
-            row.prop(settings, 'match_brush_to_active_channels')
-        row = col.row(align=True)
-        row.prop(brush, 'color', text="")
-        row.prop(brush, 'secondary_color', text="")
-        row.separator()
-        row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
-        col.separator()
+    if mode == 'STANDARD' and not pie:
         row = col.row(align=False)
-        row.operator('paint.vertex_color_set', text="Fill With Color")
-    else:
+        row.prop(settings, 'use_grayscale')
+        row = col.row(align=False)
+        row.prop(settings, 'match_brush_to_active_channels')
+
+    if mode != 'STANDARD' or settings.use_grayscale:
         row = col.row(align=True)
         row.prop(settings, 'brush_value_isolate', text="F", slider=True)
         row.prop(settings, 'brush_secondary_value_isolate', text="B", slider=True)
@@ -163,6 +157,14 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=Fal
         row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
         row = col.row(align=False)
         row.operator('paint.vertex_color_set', text="Fill With Value")
+    else:
+        row = col.row(align=True)
+        row.prop(brush, 'color', text="")
+        row.prop(brush, 'secondary_color', text="")
+        row.separator()
+        row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
+        row = col.row(align=False)
+        row.operator('paint.vertex_color_set', text="Fill With Color")
 
     col = layout.column(align=True)
     row = col.row(align=True)
