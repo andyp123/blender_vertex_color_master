@@ -971,6 +971,7 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
         settings.brush_color = brush.color
         settings.brush_secondary_color = brush.secondary_color
         brush.color = [settings.brush_value_isolate] * 3
+        brush.secondary_color = [settings.brush_secondary_value_isolate] * 3
 
         return {'FINISHED'}
 
