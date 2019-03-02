@@ -61,7 +61,7 @@ def draw_gradient_callback(self, context, line_params, line_shader, circle_shade
 # This function from a script by Bartosz Styperek with modifications by me
 # Circular gradient based on code submitted by RylauChelmi
 class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
-    """Draw a line with the mouse to paint a vertex color gradient."""
+    """Draw a line with the mouse to paint a vertex color gradient"""
     bl_idname = "vertexcolormaster.gradient"
     bl_label = "VCM Gradient Tool"
     bl_description = "Paint vertex color gradient."
@@ -898,7 +898,7 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
 
 
 class VERTEXCOLORMASTER_OT_QuickFill(bpy.types.Operator):
-    """Quick fill vertex color RGB with current brush color. Can use selection mask."""
+    """Quick fill vertex color RGB with current brush color. Can use selection mask"""
     bl_idname = 'vertexcolormaster.quick_fill'
     bl_label = 'VCM Fill Color'
     bl_options = {'REGISTER', 'UNDO'}
@@ -927,7 +927,7 @@ class VERTEXCOLORMASTER_OT_QuickFill(bpy.types.Operator):
 
 
 class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
-    """Isolate a specific channel to paint in grayscale."""
+    """Isolate a specific channel to paint in grayscale"""
     bl_idname = 'vertexcolormaster.isolate_channel'
     bl_label = 'VCM Isolate Channel'
     bl_options = {'REGISTER', 'UNDO'}
@@ -1030,7 +1030,7 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
 
 # This also supports value flipping, but otherwise can be# replaced in UI with paint.brush_colors_flip
 class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
-    """Toggle foreground and background brush colors."""
+    """Toggle foreground and background brush colors"""
     bl_idname = 'vertexcolormaster.brush_colors_flip'
     bl_label = "VCM Flip Brush Colors"
     bl_options = {'REGISTER'}
