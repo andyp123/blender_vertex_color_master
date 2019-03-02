@@ -4,6 +4,17 @@
 
 An add-on for [Blender](https://www.blender.org/) that adds numerous features to assist working with vertex colors.
 
+## Contents
+1. [Installation](#installation)
+2. [Usage](#usage)
+3. [Brush Settings](#brush_settings)
+4. [Active Channels](#active_channels)
+5. [Data Transfer](#data_transfer)
+6. [Misc Operations](#misc_operations)
+7. [Pie Menus](#pie_menus)
+8. [Planned / Possible Features](#planned_features)
+
+<a name="installation"></a>
 ## Installation
 __Note:__ This add-on requires [Blender 2.80](https://builder.blender.org/download/) or above. There is an older release compatible with Blender 2.79 available [here](https://github.com/andyp123/blender_vertex_color_master/releases/tag/v0.75).
 1. Download the latest release from GitHub [here](https://github.com/andyp123/blender_vertex_color_master/releases).
@@ -13,8 +24,11 @@ __Note:__ This add-on requires [Blender 2.80](https://builder.blender.org/downlo
 
 ---
 
+<a name="usage"></a>
 ## Usage
 This add-on is mostly designed for people who use vertex colors as extra non-color data, such as artists making models for games, where such data can be useful for creating interesting shader effects, or for storing baked light data. The tools provided by this add-on allow the user to fill, invert, posterize or remap individual color channels, as well as copy or swap channels between layers and exchange vertex weight and UV data to and from color channels.
+
+One of the key features of the addon is its [isolate workflow](#Isolate-Active-Channel), which allows the user to isolate a single channel (R,G,B or A) of vertex color data and work on it using all the usual vertex paint tools. The [data transfer](#data_transfer) features can then be used to pack different vertex color data into single channels, with the [remap](#Remap) and [posterize](#Posterize) functions helping to ensure the data is in specific ranges.
 
 The add-on will appear in the details panel (press 'n' to open) to the right of the 3D view when in vertex paint mode as shown in the following image.
 
@@ -22,6 +36,7 @@ The add-on will appear in the details panel (press 'n' to open) to the right of 
 
 ---
 
+<a name="brush_settings"></a>
 ## Brush Settings
 Brush settings contains a few of the most useful brush options so that the add-on can be open and useful without needing the full brush menu to be open. This way there is more space in the Tools panel, even on smaller displays.
 
@@ -39,6 +54,7 @@ This will ignore any selected active channels and fill the mesh with the current
 
 ---
 
+<a name="active_channels"></a>
 ## Active Channels
 The active channels section allows the user to enable or disable channels that the functions directly under the active channels will work on. For example, enabling only the R channel will mean that it is the only channel to be affected when the Invert button is pressed, etc. Different combinations of RGBA can be selected by holding the shift key while clicking on the channel buttons.
 
@@ -83,6 +99,7 @@ Remap the value of the currently active channel(s). This function takes values i
 
 ---
 
+<a name="data_transfer"></a>
 ## Data Transfer
 This section allows quick transfer of data between different color layers, vertex groups and uv layers on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled. If a UV layer is selected (UVs are prefixed with 'UV:'), channels will not be selectable at all.
 
@@ -124,6 +141,7 @@ Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 
 ---
 
+<a name="misc_operations"></a>
 ## Misc Operations
 The 'Misc Operations' section contains features unrelated to the main features of the addon.
 
@@ -179,6 +197,7 @@ The circular gradient tool is similar to the gradient tool, but draws a radial g
 
 ---
 
+<a name="pie_menus"></a>
 ## Pie Menus
 Most of the features of the addon can also be accessed from a pie menu that is bound to the 'V' key. The pie menu appears as shown in the image below.
 
@@ -190,6 +209,7 @@ When in isolate mode, the pie menu is slightly different, as shown in the follow
 
 ---
 
+<a name="planned_features"></a>
 ## Planned / Possible Features
 * Add function to set UV islands to random colors.
 * Tools to aid with non-destructive blending of layers.
