@@ -4,10 +4,10 @@
 
 An add-on for [Blender](https://www.blender.org/) that adds numerous features to assist working with vertex colors.
 
-![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vcm_usage_examples.gif)
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.79/README_img/vcm_usage_examples.gif)
 
 ## Installation
-1. Download the script from GitHub by clicking [here](https://github.com/andyp123/blender_vertex_color_master/archive/master.zip).
+1. Download the script from GitHub by clicking [here](https://github.com/andyp123/blender_vertex_color_master/releases/tag/v0.75).
 2. Open the downloaded .zip and extract the file 'vertex_color_master.py' to a temporary place on your computer.
 3. In Blender, open the User Preferences (ctrl+alt+p) and switch to the Add-ons tab.
 4. Select 'Install Add-on from file...' and select the 'vertex_color_master.py' file you extracted from the .zip.
@@ -21,7 +21,7 @@ This add-on is mostly designed for people who use vertex colors as extra non-col
 
 The add-on will appear in it's own tab ('Vertex Color Master') in vertex paint mode as shown in the following image.
 
-![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/vertex_color_master.png)
+![Vertex Color Master UI](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.79/README_img/vertex_color_master.png)
 
 
 ## Brush Settings
@@ -45,7 +45,7 @@ When a single channel is selected, the option to isolate it and work in greyscal
 
 + __Channel__ (R) - The channel that was isolated can be changed by selecting a different one.
 
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_mode.png)
+![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/Blender-2.79/README_img/isolate_mode.png)
 
 ### Fill / Clear
 Fill sets the value of the currently active channel(s) to 1, whereas Clear will set it to 0.
