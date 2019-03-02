@@ -201,11 +201,11 @@ The circular gradient tool is similar to the gradient tool, but draws a radial g
 ## Pie Menus
 Most of the features of the addon can also be accessed from a pie menu that is bound to the 'V' key. The pie menu appears as shown in the image below.
 
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/standard_pie.png)
+![Standard pie menu](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/standard_pie.png)
 
 When in isolate mode, the pie menu is slightly different, as shown in the following image.
 
-![Isolate Mode](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_pie.png)
+![Isolate pie menu](https://raw.githubusercontent.com/andyp123/blender_vertex_color_master/master/README_img/isolate_pie.png)
 
 ---
 
