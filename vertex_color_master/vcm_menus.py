@@ -250,7 +250,9 @@ def draw_src_dst_operations(context, layout, obj, settings):
     if src_type == type_vcol and dst_type == type_vcol:
         row = layout.row(align=True)
         row.operator('vertexcolormaster.copy_channel', text="Copy").swap_channels = False
-        row.operator('vertexcolormaster.copy_channel', text="Swap").swap_channels = True
+        op = row.operator('vertexcolormaster.copy_channel', text="Swap")
+        op.swap_channels = True
+        op.all_channels = False
 
         col = layout.column(align=True)
         row = col.row()
