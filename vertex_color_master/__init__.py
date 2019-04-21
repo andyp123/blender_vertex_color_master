@@ -37,7 +37,7 @@ from . import vcm_helpers
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 81),
+    "version": (0, 82),
     "blender": (2, 80, 0),
     "location": "Vertex Paint | View3D > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
@@ -90,7 +90,7 @@ def register():
         km = wm.keyconfigs.addon.keymaps.new(name='Vertex Paint')
         # pie menu
         kmi = km.keymap_items.new('wm.call_menu_pie', 'V', 'PRESS')
-        kmi.properties.name = "vertexcolormaster.pie_main"
+        kmi.properties.name = "VERTEXCOLORMASTER_MT_PieMain"
         kmi.active = True
         addon_keymaps.append((km, kmi))
         # override 'x' to use VCM flip brush colors

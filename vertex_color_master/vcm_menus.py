@@ -87,7 +87,7 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
 class VERTEXCOLORMASTER_MT_PieMain(Menu):
     # label is displayed at the center of the pie menu.
     bl_label = "Vertex Color Master"
-    bl_idname = "vertexcolormaster.pie_main"
+    bl_idname = "VERTEXCOLORMASTER_MT_PieMain"
 
     @classmethod
     def poll(cls, context):
@@ -296,10 +296,9 @@ def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=Fa
     col = layout.column(align=True)
     if mode == 'STANDARD':
         row = col.row(align=True)
-        row.operator('vertexcolormaster.randomize_mesh_island_colors', text="Random Mesh Island Colors")
-        row = col.row(align=True)
-        # vertexcolormaster.adjust_hsv is too slow
         row.operator('paint.vertex_color_hsv', text="Adjust HSV")
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.randomize_mesh_island_colors', text="Random Mesh Island Colors")
     row = col.row(align=True)
     row.operator('paint.vertex_color_brightness_contrast', text="Brightness/Contrast")
     row = col.row(align=True)

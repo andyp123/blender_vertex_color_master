@@ -389,28 +389,42 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
         # Used for setting hue with order based color assignment
         separationDiff = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
 
+        # If we are in isolate mode, this is used to force greyscale
+        isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+
         for index, island in enumerate(mesh_islands):
             color = Color((1, 0, 0)) # (0, 1, 1) HSV
 
+            # Determine color based on settings
             if self.merge_similar:
                 face_count = len(island)
                 if face_count in island_colors.keys():
                     color = island_colors[face_count]
                 else:
-                    color.h = random.random() if self.randomize_hue else self.base_hue
-                    color.s = random.random() if self.randomize_saturation else self.base_saturation
-                    color.v = random.random() if self.randomize_value else self.base_value
-                    island_colors[face_count] = color
+                    if isolate is not None:
+                        v = random.random()
+                        color = Color((v, v, v))
+                        island_colors[face_count] = color
+                    else:
+                        color.h = random.random() if self.randomize_hue else self.base_hue
+                        color.s = random.random() if self.randomize_saturation else self.base_saturation
+                        color.v = random.random() if self.randomize_value else self.base_value
+                        island_colors[face_count] = color
             else:
-                if self.order_based:
-                    color.h = index * separationDiff if self.randomize_hue else self.base_hue
-                    color.s = index * separationDiff if self.randomize_saturation else self.base_saturation
-                    color.v = index * separationDiff if self.randomize_value else self.base_value
+                if isolate is not None:
+                    v = index * separationDiff if self.order_based else random.random()
+                    color = Color((v, v, v))
                 else:
-                    color.h = random.random() if self.randomize_hue else self.base_hue
-                    color.s = random.random() if self.randomize_saturation else self.base_saturation
-                    color.v = random.random() if self.randomize_value else self.base_value
+                    if self.order_based:
+                        color.h = index * separationDiff if self.randomize_hue else self.base_hue
+                        color.s = index * separationDiff if self.randomize_saturation else self.base_saturation
+                        color.v = index * separationDiff if self.randomize_value else self.base_value
+                    else:
+                        color.h = random.random() if self.randomize_hue else self.base_hue
+                        color.s = random.random() if self.randomize_saturation else self.base_saturation
+                        color.v = random.random() if self.randomize_value else self.base_value
 
+            # Set island face colors
             for face in island:
                 for loop in face.loops:
                     new_color = loop[color_layer]
