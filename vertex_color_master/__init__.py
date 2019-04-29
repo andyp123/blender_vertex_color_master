@@ -37,7 +37,7 @@ from . import vcm_helpers
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 82),
+    "version": (0, 83),
     "blender": (2, 80, 0),
     "location": "Vertex Paint | View3D > Vertex Color Master",
     "description": "Tools for manipulating vertex color data.",
@@ -65,9 +65,9 @@ classes = (
     vcm_ops.VERTEXCOLORMASTER_OT_IsolateChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_ApplyIsolatedChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors,
-    vcm_ops.VERTEXCOLORMASTER_OT_AdjustHSV,
     vcm_ops.VERTEXCOLORMASTER_OT_FlipBrushColors,
     vcm_ops.VERTEXCOLORMASTER_OT_Gradient,
+    vcm_ops.VERTEXCOLORMASTER_OT_BlurChannel,
     vcm_menus.VERTEXCOLORMASTER_PT_MainPanel,
     vcm_menus.VERTEXCOLORMASTER_MT_PieMain,
 )

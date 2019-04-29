@@ -182,7 +182,7 @@ def color_to_uvs(mesh, src_vcol, dst_uv, src_u_idx=0, src_v_idx=1):
     mesh.update()
 
 
-def weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx):
+def weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx, all_channels=False):
     vertex_weights = [0.0] * len(mesh.vertices)
 
     # build list of weights for vertex indices
@@ -193,9 +193,14 @@ def weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx):
                 break
 
     # copy weights to channel of dst color layer
-    for loop_index, loop in enumerate(mesh.loops):
-        weight = vertex_weights[loop.vertex_index]
-        dst_vcol.data[loop_index].color[dst_channel_idx] = weight
+    if not all_channels:
+        for loop_index, loop in enumerate(mesh.loops):
+            weight = vertex_weights[loop.vertex_index]
+            dst_vcol.data[loop_index].color[dst_channel_idx] = weight
+    else:
+        for loop_index, loop in enumerate(mesh.loops):
+            weight = vertex_weights[loop.vertex_index]
+            dst_vcol.data[loop_index].color[:3] = [weight]*3
 
     mesh.update()
 

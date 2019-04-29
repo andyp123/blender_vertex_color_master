@@ -145,6 +145,16 @@ Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
 ## Misc Operations
 The 'Misc Operations' section contains features unrelated to the main features of the addon.
 
+### Blur Channel Values
+Blurs the values of all the vertices in the mesh to smooth them out. It uses the smooth weights function available in weight paint mode, but allows it to be used interactively on vertex color channel data.
+__Note__: This feature is currently only available when a channel has been isolated.
+
++ __Factor__ (0.5) - The amount of blur to apply.
+
++ __Iterations__ (1) - The number of times to apply the blur. Increasing this will result in a smoother blur.
+
++ __Expand/Contract__ (0.0) - Use this to adjust the balance of dark/light values as the blur is applied. It is similar to brightness/contrast adjustment, or the remap operator.
+
 ### Randomize Mesh Island Colors
 All separate parts of a mesh (islands), will be assigned random colors based on various randomization parameters.
 

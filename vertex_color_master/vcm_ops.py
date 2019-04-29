@@ -441,52 +441,70 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
-    """Adjust the Hue, Saturation and Value of the the active vertex colors"""
-    bl_idname = 'vertexcolormaster.adjust_hsv'
-    bl_label = 'VCM Adjust HSV'
+class VERTEXCOLORMASTER_OT_BlurChannel(bpy.types.Operator):
+    """Blur values of a particular channel"""
+    bl_idname = 'vertexcolormaster.blur_channel'
+    bl_label = 'VCM Blur Channel'
     bl_options = {'REGISTER', 'UNDO'}
 
-    colorize: BoolProperty(
-        name="Colorize",
-        description="Colorize the mesh instead of adjusting hue.",
-        default=False
-    )
+    factor: FloatProperty(
+        name="Factor",
+        description="Amount of blur to apply.",
+        default=0.5,
+        min=0.0,
+        max=1.0
+    )  
 
-    hue_adjust: FloatProperty(
-        name="Hue",
-        description="Hue adjustment.",
-        default=0.0,
-        min=-0.5,
-        max=0.5
-    )
+    iterations: IntProperty(
+        name="Iterations",
+        description="Number of iterations to blur values.",
+        default=1,
+        min=1,
+        max=200
+    ) 
 
-    sat_adjust: FloatProperty(
-        name="Saturation",
-        description="Saturation adjustment.",
+    expand: FloatProperty(
+        name="Expand/Contract",
+        description="Alter how the blur affects the distribution of dark/light values.",
         default=0.0,
         min=-1.0,
         max=1.0
-    )
+    ) 
 
-    val_adjust: FloatProperty(
-        name="Value",
-        description="Value adjustment.",
-        default=0.0,
-        min=-1.0,
-        max=1.0
-    )
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        settings = context.scene.vertex_color_master_settings
-        mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active
+        obj = context.active_object
+        mesh = obj.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        isolate = get_isolated_channel_ids(vcol)
 
-        if vcol is None:
-            self.report({'ERROR'}, "Can't modify HSV when no vertex color data exists.")
-            return {'FINISHED'}
+        if isolate is None:
+            self.report({'ERROR'}, "Blur only works with an isolated channel")
+            return {'CANCELLED'}
 
-        adjust_hsv(mesh, vcol, self.hue_adjust, self.sat_adjust, self.val_adjust, self.colorize)
+        vgroup_id = 'vcm_temp_weights'
+        vgroup = obj.vertex_groups.new(name=vgroup_id)
+        obj.vertex_groups.active_index = vgroup.index
+
+        channel_idx = channel_id_to_idx(isolate[1])
+        color_to_weights(obj, vcol, channel_idx, vgroup.index)
+
+        bpy.ops.object.mode_set(mode='WEIGHT_PAINT', toggle=False)
+        bpy.ops.object.vertex_group_smooth(
+            group_select_mode='ACTIVE',
+            factor=self.factor,
+            repeat=self.iterations,
+            expand=self.expand
+        )
+        bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
+
+        weights_to_color(mesh, vgroup.index, vcol, channel_idx, all_channels=True)
+
+        obj.vertex_groups.remove(vgroup)
 
         return {'FINISHED'}
 

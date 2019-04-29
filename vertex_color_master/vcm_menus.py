@@ -297,6 +297,9 @@ def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=Fa
     if mode == 'STANDARD':
         row = col.row(align=True)
         row.operator('paint.vertex_color_hsv', text="Adjust HSV")
+    else:
+        row = col.row(align=True)
+        row.operator('vertexcolormaster.blur_channel', text="Blur Channel Values")
     row = col.row(align=True)
     row.operator('vertexcolormaster.randomize_mesh_island_colors', text="Random Mesh Island Colors")
     row = col.row(align=True)
