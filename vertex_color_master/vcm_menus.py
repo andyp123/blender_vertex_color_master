@@ -34,7 +34,7 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
     bl_idname = 'VERTEXCOLORMASTER_PT_MainPanel'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category =  'View'
+    bl_category =  'VCM'
     bl_context = 'vertexpaint'
     # bl_options = {'DEFAULT_CLOSED'}
 
