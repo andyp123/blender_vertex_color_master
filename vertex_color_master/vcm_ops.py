@@ -72,6 +72,20 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     line_shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
     circle_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
 
+    start_color: FloatVectorProperty(
+        name="Start Color",
+        subtype='COLOR',
+        default=[1.0,0.0,0.0],
+        description="Start color of the gradient."
+    )
+
+    end_color: FloatVectorProperty(
+        name="End Color",
+        subtype='COLOR',
+        default=[0.0,1.0,0.0],
+        description="End color of the gradient."
+    )
+
     circular_gradient: BoolProperty(
         name="Circular Gradient",
         description="Paint a circular gradient",
@@ -192,12 +206,17 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         # Begin gradient line and initialize draw handler
         if self._handle is None:
             if event.type == 'LEFTMOUSE':
+                # Store the foreground and background color for redo
+                brush = bpy.data.brushes['Draw']
+                self.start_color = brush.color
+                self.end_color = brush.secondary_color
+
                 # Create arguments to pass to the draw handler callback
                 mouse_position = Vector((event.mouse_region_x, event.mouse_region_y))
                 self.line_params = {
                     "coords": [mouse_position, mouse_position],
-                    "colors": [bpy.data.brushes['Draw'].color[:] + (1.0,),
-                               bpy.data.brushes['Draw'].secondary_color[:] + (1.0,)],
+                    "colors": [brush.color[:] + (1.0,),
+                               brush.secondary_color[:] + (1.0,)],
                     "width": 1, # currently does nothing
                 }
                 args = (self, context, self.line_params, self.line_shader,
@@ -224,7 +243,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                     if end_point == start_point:
                         return {'CANCELLED'}
 
-                    # Use color gradient or force greyscale in isolate mode
+                    # Use color gradient or force grayscale in isolate mode
                     start_color = line_params["colors"][0]
                     end_color = line_params["colors"][1]
                     isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
@@ -250,6 +269,23 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         # Keep running until completed or cancelled
         return {'RUNNING_MODAL'}
 
+    def execute(self, context):
+        start_point = self.line_params["coords"][0]
+        end_point = self.line_params["coords"][1]
+        start_color = self.start_color
+        end_color = self.end_color
+
+        # Use color gradient or force grayscale in isolate mode
+        isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+        use_hue_blend = self.use_hue_blend
+        if isolate is not None:
+            start_color = [rgb_to_luminosity(start_color)] * 3
+            end_color = [rgb_to_luminosity(end_color)] * 3
+            use_hue_blend = False
+
+        self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient, use_hue_blend)
+
+        return {'FINISHED'}
 
     def invoke(self, context, event):
         if context.area.type == 'VIEW_3D':
