@@ -202,8 +202,20 @@ Uses Blender's built-in Dirty Vertex Color function to darken the vertex colors 
 ### Linear Gradient
 When enabled, the gradient tool allows you to draw a line representing the start and end of a gradient in the 3D view. Once the line has been drawn, a gradient will be painted onto the mesh. The brush primary and secondary colors are used to set the gradient colors.
 
++ __Start Color__ - Start color of the gradient.
+
++ __End Color__ - End color of the gradient.
+
++ __Circular Gradient__ (off) - Switch between circle and linear gradient.
+
++ __Use Hue Blend__ (off) - Blend using all the colours in between start and end, instead of a linear blend.
+
+
 ### Circular Gradient
 The circular gradient tool is similar to the gradient tool, but draws a radial gradient, with the center at the first position clicked, and edge at the second.
+
+__Note__: Circular gradient uses the same underlying operator as the Linear gradient, and so has the same options.
+
 
 ---
 
