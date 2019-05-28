@@ -21,6 +21,7 @@ import bpy
 from bpy.props import *
 from mathutils import Color
 from .vcm_globals import *
+from .vcm_helpers import rgb_to_luminosity
 
 # VERTEXCOLORMASTER_Properties
 class VertexColorMasterProperties(bpy.types.PropertyGroup):
@@ -53,6 +54,23 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
         return None
 
+    def toggle_grayscale(self, context):
+        brush = bpy.data.brushes['Draw']
+
+        if self.use_grayscale:
+            self.brush_color = brush.color
+            self.brush_secondary_color = brush.secondary_color
+
+            v1 = self.brush_value_isolate
+            v2 = self.brush_secondary_value_isolate
+            brush.color = Color((v1, v1, v1))
+            brush.secondary_color = Color((v2, v2, v2))
+        else:
+            brush.color = self.brush_color
+            brush.secondary_color = self.brush_secondary_color
+
+        return None
+
     active_channels: EnumProperty(
         name="Active Channels",
         options={'ENUM_FLAG'},
@@ -73,6 +91,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         name="Use Grayscale",
         default=False,
         description="Show grayscale values instead of RGB colors.",
+        update=toggle_grayscale
     )
 
     # Used only to store the color between RGBA and isolate modes
