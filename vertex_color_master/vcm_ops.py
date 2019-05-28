@@ -98,6 +98,11 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         default=False
     )
 
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
     def paintVerts(self, context, start_point, end_point, start_color, end_color, circular_gradient=False, use_hue_blend=False):
         region = context.region
         rv3d = context.region_data
@@ -1104,6 +1109,10 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
     bl_idname = 'vertexcolormaster.brush_colors_flip'
     bl_label = "VCM Flip Brush Colors"
     bl_options = {'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return bpy.context.object.mode == 'VERTEX_PAINT'
 
     def execute(self, context):
         brush = bpy.data.brushes['Draw']
