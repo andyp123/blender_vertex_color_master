@@ -139,6 +139,8 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
             ("{0} {1}".format(type_uv, uv.name),
              "UV: " + uv.name, "") for uv in mesh.uv_layers]
         items.extend(ext)
+        ext = [("{0} {1}".format(type_normal, "Normals"), "Normals", "")]
+        items.extend(ext)
 
         return items
 

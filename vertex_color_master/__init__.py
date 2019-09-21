@@ -37,9 +37,9 @@ from . import vcm_helpers
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 83),
+    "version": (0, 84),
     "blender": (2, 80, 0),
-    "location": "Vertex Paint | View3D > Vertex Color Master",
+    "location": "Vertex Paint | View3D > VCM",
     "description": "Tools for manipulating vertex color data.",
     "warning": "",
     "wiki_url": "https://github.com/andyp123/blender_vertex_color_master",
@@ -62,6 +62,8 @@ classes = (
     vcm_ops.VERTEXCOLORMASTER_OT_ColorToWeights,
     vcm_ops.VERTEXCOLORMASTER_OT_UVsToColor,
     vcm_ops.VERTEXCOLORMASTER_OT_ColorToUVs,
+    vcm_ops.VERTEXCOLORMASTER_OT_NormalsToColor,
+    vcm_ops.VERTEXCOLORMASTER_OT_ColorToNormals,
     vcm_ops.VERTEXCOLORMASTER_OT_IsolateChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_ApplyIsolatedChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors,
@@ -76,6 +78,10 @@ classes = (
 addon_keymaps = []
 
 def register():
+    # fix issue with default brush name changing between 2.80 > 2.81
+    if bpy.app.version >= (2, 81, 0):
+        default_brush_name = 'Add'
+
     # add operators
     for c in classes:
         bpy.utils.register_class(c)

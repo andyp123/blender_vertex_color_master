@@ -27,7 +27,8 @@ valid_channel_ids = 'RGBA'
 type_vcol = 'VCOL'
 type_vgroup = 'VGROUP'
 type_uv = 'UV'
-valid_layer_types = [type_vcol, type_vgroup, type_uv]
+type_normal = 'NORMALS'
+valid_layer_types = [type_vcol, type_vgroup, type_uv, type_normal]
 
 channel_items = ((red_id, "R", ""),
                  (green_id, "G", ""),
@@ -49,6 +50,8 @@ channel_blend_mode_items = (('ADD', "Add", ""),
                             ('LIGHTEN', "Lighten",  ""),
                             ('DARKEN', "Darken", ""),
                             ('MIX', "Mix", ""))
+
+default_brush_name = 'Draw' # Changed to Add in 2.81 for some reason
 
  # VCM-ISO_<CHANNEL_ID>_<VCOL_ID> ex. VCM-ISO_R_Col
 isolate_mode_name_prefix = 'VCM-ISO'

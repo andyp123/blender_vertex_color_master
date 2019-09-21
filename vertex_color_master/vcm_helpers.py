@@ -19,7 +19,7 @@
 
 import bpy
 from math import fmod
-from mathutils import Color
+from mathutils import Color, Vector
 from .vcm_globals import *
 
 def posterize(value, steps):
@@ -165,8 +165,8 @@ def uvs_to_color(mesh, src_uv, dst_vcol, dst_u_idx=0, dst_v_idx=1):
         uv = src_uv.data[loop_index].uv
         u = fmod(uv[0], 1.0)
         v = fmod(uv[1], 1.0)
-        c[dst_u_idx] = u + 1 if u < 0 else u
-        c[dst_v_idx] = v + 1 if v < 0 else v
+        c[dst_u_idx] = u + 1.0 if u < 0 else u
+        c[dst_v_idx] = v + 1.0 if v < 0 else v
         dst_vcol.data[loop_index].color = c
 
     mesh.update()
@@ -180,6 +180,48 @@ def color_to_uvs(mesh, src_vcol, dst_uv, src_u_idx=0, src_v_idx=1):
         dst_uv.data[loop_index].uv = uv
 
     mesh.update()
+
+
+def get_custom_normals(obj):
+    # Not entirely sure why this works and [loop.normal for loop in obj.data.loops] doesn't work...
+    # note that these normals are in world space... seems to be a huge pain to get tangent space normals
+    normals = [loop.normal for loop in [obj.data.calc_normals_split(), obj][1].data.loops]
+
+    return normals
+
+
+def normals_to_color(mesh, normals, dst_vcol):
+    # copy normal xyz to color rgb
+    for loop_index, loop in enumerate(mesh.loops):
+        c = dst_vcol.data[loop_index].color
+        n = normals[loop_index]
+        # remap to values that can be displayed
+        c[0] = remap(n[0], -1.0, 1.0, 0.0, 1.0)
+        c[1] = remap(n[1], -1.0, 1.0, 0.0, 1.0)
+        c[2] = remap(n[2], -1.0, 1.0, 0.0, 1.0)
+        dst_vcol.data[loop_index].color = c
+
+    mesh.update()
+
+
+def color_to_normals(mesh, src_vcol):
+    # ensure the mesh has empty split normals
+    if not mesh.has_custom_normals:
+        mesh.create_normals_split()
+        mesh.use_auto_smooth = True
+
+    # create a structure that matches the required input of the normals_split_custom_set function
+    clnors = [Vector()] * len(mesh.loops)
+
+    for loop_index, loop in enumerate(mesh.loops):
+        c = src_vcol.data[loop_index].color
+        # remap color to normal range
+        n = Vector([remap(channel, 0.0, 1.0, -1.0, 1.0) for channel in c[0:3]])
+        n.normalize()
+        clnors[loop_index] = n   
+
+    mesh.normals_split_custom_set(clnors)   
+    mesh.update()  
 
 
 def weights_to_color(mesh, src_vgroup_idx, dst_vcol, dst_channel_idx, all_channels=False):

@@ -602,6 +602,55 @@ class VERTEXCOLORMASTER_OT_UVsToColor(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class VERTEXCOLORMASTER_OT_NormalsToColor(bpy.types.Operator):
+    """Copy Custom Normals to vertex color channel"""
+    bl_idname = 'vertexcolormaster.normals_to_color'
+    bl_label = 'VCM Normals to Color'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        vi = get_validated_input(context, get_src=False, get_dst=True)
+
+        if vi['error'] is not None:
+            self.report({'ERROR'}, vi['error'])
+            return {'FINISHED'}
+
+        obj = context.active_object
+        normals = get_custom_normals(obj)
+        normals_to_color(obj.data, normals, vi['dst_vcol'])
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_ColorToNormals(bpy.types.Operator):
+    """Copy vertex color channel to custom normals"""
+    bl_idname = 'vertexcolormaster.color_to_normals'
+    bl_label = 'VCM Color to Normals'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        vi = get_validated_input(context, get_src=True, get_dst=False)
+
+        if vi['error'] is not None:
+            self.report({'ERROR'}, vi['error'])
+            return {'FINISHED'}
+
+        mesh = context.active_object.data
+        color_to_normals(mesh, vi['src_vcol'])
+
+        return {'FINISHED'}
+
+
 class VERTEXCOLORMASTER_OT_ColorToWeights(bpy.types.Operator):
     """Copy vertex color channel to vertex group weights"""
     bl_idname = 'vertexcolormaster.color_to_weights'

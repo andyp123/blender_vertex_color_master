@@ -174,6 +174,8 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=Fal
     row.operator('vertexcolormaster.edit_brush_settings', text="Blur").blend_mode = 'BLUR'
     row = col.row(align=True)
     row.prop(brush, 'strength', text="Strength")
+    row = col.row(align=True)
+    row.prop(brush, 'use_alpha', text="Affect Alpha")
 
 
 def draw_active_channel_operations(context, layout, obj, settings, mode='STANDARD', pie=False):
@@ -236,7 +238,7 @@ def draw_src_dst_operations(context, layout, obj, settings):
     split = split.split(align=True)
     col = split.column(align=True)
     col.prop(settings, 'src_channel_id', text="")
-    col.enabled = src_type == type_vcol and dst_type != type_uv
+    col.enabled = src_type == type_vcol and (dst_type == type_vcol or dst_type == type_vgroup)
 
     row = layout.row()
     split = row.split(factor=lcol_percentage, align=True)
@@ -245,7 +247,7 @@ def draw_src_dst_operations(context, layout, obj, settings):
     split = split.split(align=True)
     col = split.column(align=True)
     col.prop(settings, 'dst_channel_id', text="")
-    col.enabled = dst_type == type_vcol and src_type != type_uv
+    col.enabled = dst_type == type_vcol and (src_type == type_vcol or src_type == type_vgroup)
 
     if src_type == type_vcol and dst_type == type_vcol:
         row = layout.row(align=True)
@@ -276,10 +278,16 @@ def draw_src_dst_operations(context, layout, obj, settings):
             text="Src ({0}) to Weights".format(settings.src_channel_id))
     elif src_type == type_uv and dst_type == type_vcol:
         row = layout.row(align=True)
-        row.operator('vertexcolormaster.uvs_to_color', text="UVs to Dst")
+        row.operator('vertexcolormaster.uvs_to_color', text="UVs to Color")
     elif src_type == type_vcol and dst_type == type_uv:
         row = layout.row(align=True)
-        row.operator('vertexcolormaster.color_to_uvs', text="Src to UVs")
+        row.operator('vertexcolormaster.color_to_uvs', text="Color to UVs")
+    elif src_type == type_normal and dst_type == type_vcol:
+        row = layout.row(align=True)
+        row.operator('vertexcolormaster.normals_to_color', text="Normals to Color")
+    elif src_type == type_vcol and dst_type == type_normal:
+        row = layout.row(align=True)
+        row.operator('vertexcolormaster.color_to_normals', text="Color to Normals")
     else:
         # unsupported: vgroup <-> vgroup, uv <-> uv, vgroup <-> uv
         row = layout.row(align=True)
