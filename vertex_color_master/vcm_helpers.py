@@ -48,7 +48,7 @@ def channel_id_to_idx(id):
 
 
 def get_active_channel_mask():
-    active_channels = context.scene.vertex_color_master_settings.active_channels
+    active_channels = bpy.context.scene.vertex_color_master_settings.active_channels
     rgba_mask = [True if cid in active_channels else False for cid in valid_channel_ids]
     return rgba_mask
 

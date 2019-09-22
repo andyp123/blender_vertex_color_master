@@ -508,12 +508,13 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
-        isolate = get_isolated_channel_ids(obj.data.vertex_colors.active)
+        obj = context.active_object
+        mesh = obj.data
+        isolate = get_isolated_channel_ids(mesh.vertex_colors.active)
         if isolate is not None:
             self.report({'ERROR'}, "Randomise Islands Per Channel does not work in isolate mode")
             return {'CANCELLED'}
 
-        mesh = context.active_object.data
         rgba_mask = get_active_channel_mask()
         random.seed(self.random_seed)
         set_island_colors_per_channel(mesh, rgba_mask, self.merge_similar)
