@@ -67,6 +67,7 @@ classes = (
     vcm_ops.VERTEXCOLORMASTER_OT_IsolateChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_ApplyIsolatedChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors,
+    vcm_ops.VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel,
     vcm_ops.VERTEXCOLORMASTER_OT_FlipBrushColors,
     vcm_ops.VERTEXCOLORMASTER_OT_Gradient,
     vcm_ops.VERTEXCOLORMASTER_OT_BlurChannel,

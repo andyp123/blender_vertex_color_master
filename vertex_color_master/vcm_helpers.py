@@ -47,6 +47,12 @@ def channel_id_to_idx(id):
     return 0
 
 
+def get_active_channel_mask():
+    active_channels = context.scene.vertex_color_master_settings.active_channels
+    rgba_mask = [True if cid in active_channels else False for cid in valid_channel_ids]
+    return rgba_mask
+
+
 def get_isolated_channel_ids(vcol):
     vcol_id = vcol.name
     prefix = isolate_mode_name_prefix
@@ -476,6 +482,59 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
                 vcol.data[loop_index].color = new_color
 
     mesh.update()
+
+
+# check isolate mode (shouldn't work in isolate mode...)
+# set random seed in parent function
+def set_island_colors_per_channel(mesh, rgba_mask, merge_similar):
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+
+    bm = bmesh.from_edit_mesh(mesh)
+    bm.faces.ensure_lookup_table()
+    color_layer = bm.loops.layers.color.active
+
+    # Find all islands in the mesh
+    mesh_islands = []
+    selected_faces = ([f for f in bm.faces if f.select])
+    faces = selected_faces if mesh.use_paint_mask or mesh.use_paint_mask_vertex else bm.faces
+    bpy.ops.mesh.select_all(action="DESELECT")
+
+    while len(faces) > 0:
+        # Select linked faces to find island
+        faces[0].select_set(True)
+        bpy.ops.mesh.select_linked()
+        mesh_islands.append([f for f in faces if f.select])
+        # Hide the island and update faces
+        bpy.ops.mesh.hide(unselected=False)
+        faces = [f for f in faces if not f.hide]
+
+    bpy.ops.mesh.reveal()  
+
+    island_colors = {} # Island face count : Random color pairs
+
+    for index, island in enumerate(mesh_islands):
+        rgba_values = []
+
+        face_count = len(island)
+        if merge_similar and face_count in island_colors.keys():
+            rgba_values = island_colors[face_count]
+        else:
+            rgba_values = [random.random() for i in range(4)]
+            island_colors[face_count] = rgba_values
+
+        # Set island face colors (probably quite slow, due to list comprehension per face loop)
+        for face in island:
+            for loop in face.loops:
+                c = loop[color_layer]
+                c = [v if rgba_mask[i] else c[i] for i, v in enumerate(rgba_values)]
+                loop[color_layer] = c
+
+    # Restore selection
+    for f in selected_faces:
+        f.select = True
+
+    bm.free()
+    bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
 
 
 def get_layer_info(context):

@@ -305,7 +305,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
 class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
     """Assign random colors to separate mesh islands"""
     bl_idname = 'vertexcolormaster.randomize_mesh_island_colors'
-    bl_label = 'VCM Randomize Mesh Island Colors'
+    bl_label = 'VCM Randomize Island Colors'
     bl_options = {'REGISTER', 'UNDO'}
 
     random_seed: IntProperty(
@@ -478,6 +478,45 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
 
         bm.free()
         bpy.ops.object.mode_set(mode='VERTEX_PAINT', toggle=False)
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operator):
+    """Assign random values per active channel to separate mesh islands"""
+    bl_idname = 'vertexcolormaster.randomize_mesh_island_colors_per_channel'
+    bl_label = 'VCM Randomize Island Colors Per Channel'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    random_seed: IntProperty(
+        name="Random Seed",
+        description="Seed for the randomization. Change this value to get different random values.",
+        default=1,
+        min=1,
+        max=1000
+    )
+
+    merge_similar: BoolProperty(
+        name="Merge Similar",
+        description="Use the same values for similar parts of the mesh (determined by equal face count).",
+        default=False
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        isolate = get_isolated_channel_ids(obj.data.vertex_colors.active)
+        if isolate is not None:
+            self.report({'ERROR'}, "Randomise Islands Per Channel does not work in isolate mode")
+            return {'CANCELLED'}
+
+        mesh = context.active_object.data
+        rgba_mask = get_active_channel_mask()
+        random.seed(self.random_seed)
+        set_island_colors_per_channel(mesh, rgba_mask, self.merge_similar)
 
         return {'FINISHED'}
 
@@ -793,7 +832,6 @@ class VERTEXCOLORMASTER_OT_BlendChannels(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def invoke(self, context, event):
-        settings = context.scene.vertex_color_master_settings
         self.result_channel = settings.dst_channel_id
         return self.execute(context)
 
