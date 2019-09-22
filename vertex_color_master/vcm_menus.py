@@ -174,8 +174,9 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=Fal
     row.operator('vertexcolormaster.edit_brush_settings', text="Blur").blend_mode = 'BLUR'
     row = col.row(align=True)
     row.prop(brush, 'strength', text="Strength")
-    row = col.row(align=True)
-    row.prop(brush, 'use_alpha', text="Affect Alpha")
+    if mode == 'STANDARD':
+        row = col.row(align=True)
+        row.prop(brush, 'use_alpha', text="Affect Alpha")
 
 
 def draw_active_channel_operations(context, layout, obj, settings, mode='STANDARD', pie=False):
@@ -215,10 +216,12 @@ def draw_active_channel_operations(context, layout, obj, settings, mode='STANDAR
         row.operator('vertexcolormaster.invert', text='Invert')
     else:
         # Use built-in, as it's much faster
-        row.operator('paint.vertex_color_invert', text="Invert")
+        row.operator('paint.vertex_color_invert', text='Invert')
     row.operator('vertexcolormaster.posterize', text='Posterize')
     row = col.row(align=True)
     row.operator('vertexcolormaster.remap', text='Remap')
+    if mode == 'STANDARD':
+        row.operator('vertexcolormaster.randomize_mesh_island_colors_per_channel', text='Islands')
 
 
 def draw_src_dst_operations(context, layout, obj, settings):

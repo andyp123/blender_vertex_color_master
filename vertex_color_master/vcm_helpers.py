@@ -47,8 +47,7 @@ def channel_id_to_idx(id):
     return 0
 
 
-def get_active_channel_mask():
-    active_channels = bpy.context.scene.vertex_color_master_settings.active_channels
+def get_active_channel_mask(active_channels):
     rgba_mask = [True if cid in active_channels else False for cid in valid_channel_ids]
     return rgba_mask
 
@@ -486,7 +485,7 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
 
 # check isolate mode (shouldn't work in isolate mode...)
 # set random seed in parent function
-def set_island_colors_per_channel(mesh, rgba_mask, merge_similar):
+def set_island_colors_per_channel(mesh, rgba_mask, merge_similar, vmin, vmax):
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
 
     bm = bmesh.from_edit_mesh(mesh)
@@ -519,7 +518,8 @@ def set_island_colors_per_channel(mesh, rgba_mask, merge_similar):
         if merge_similar and face_count in island_colors.keys():
             rgba_values = island_colors[face_count]
         else:
-            rgba_values = [random.random() for i in range(4)]
+            vrange = abs(vmax - vmin)
+            rgba_values = [(vmin + random.random() * vrange) for i in range(4)]
             island_colors[face_count] = rgba_values
 
         # Set island face colors (probably quite slow, due to list comprehension per face loop)

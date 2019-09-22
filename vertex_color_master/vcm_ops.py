@@ -387,10 +387,13 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
         row.prop(self, 'randomize_value', text="Randomize")
         row.prop(self, 'base_value', text="V", slider=True)
 
-        layout.prop(self, 'random_seed', text="Seed", slider=True)
+        col = layout.column(align=True)
+        col.prop(self, 'merge_similar')
+        row = col.row()
+        row.prop(self, 'order_based')
+        row.enabled = not self.merge_similar
+        col.prop(self, 'random_seed', text="Seed")
 
-        layout.prop(self, 'order_based')
-        layout.prop(self, 'merge_similar')
 
     @classmethod
     def poll(cls, context):
@@ -488,6 +491,15 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
     bl_label = 'VCM Randomize Island Colors Per Channel'
     bl_options = {'REGISTER', 'UNDO'}
 
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to enable.",
+        default={'R', 'G', 'B'},
+        update=update_active_channels
+    )
+
     random_seed: IntProperty(
         name="Random Seed",
         description="Seed for the randomization. Change this value to get different random values.",
@@ -502,10 +514,46 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
         default=False
     )
 
+    value_min: FloatProperty(
+        name="Min",
+        default=0,
+        min=0,
+        max=1
+    )
+
+    value_max: FloatProperty(
+        name="Max",
+        default=1,
+        min=0,
+        max=1
+    )
+
+    # Use custom UI for better showing randomization parameters
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.label(text="Affected Channels")
+
+        col = layout.column()
+        row = col.row(align=True)
+        row.prop(self, 'active_channels')
+
+        layout.label(text="Randomization Parameters")
+
+        layout.prop(self, 'merge_similar')
+        layout.prop(self, 'random_seed', text="Seed")
+        layout.prop(self, 'value_min', text="Min", slider=True)
+        layout.prop(self, 'value_max', text="Max", slider=True)
+
     @classmethod
     def poll(cls, context):
         obj = context.active_object
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        self.active_channels = settings.active_channels
+        return self.execute(context)
 
     def execute(self, context):
         obj = context.active_object
@@ -515,9 +563,9 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
             self.report({'ERROR'}, "Randomise Islands Per Channel does not work in isolate mode")
             return {'CANCELLED'}
 
-        rgba_mask = get_active_channel_mask()
+        rgba_mask = get_active_channel_mask(self.active_channels)
         random.seed(self.random_seed)
-        set_island_colors_per_channel(mesh, rgba_mask, self.merge_similar)
+        set_island_colors_per_channel(mesh, rgba_mask, self.merge_similar, self.value_min, self.value_max)
 
         return {'FINISHED'}
 
