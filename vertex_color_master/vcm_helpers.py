@@ -18,6 +18,8 @@
 # <pep8 compliant>
 
 import bpy
+import bmesh
+import random
 from math import fmod
 from mathutils import Color, Vector
 from .vcm_globals import *
