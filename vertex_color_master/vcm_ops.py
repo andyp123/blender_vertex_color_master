@@ -1023,6 +1023,14 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
     bl_label = 'VCM Remap'
     bl_options = {'REGISTER', 'UNDO'}
 
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to enable.",
+        default={'R', 'G', 'B'},
+    )
+
     min0: FloatProperty(
         default=0,
         min=0,
@@ -1046,25 +1054,18 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
         min=0,
         max=1
     )
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
-
-    def execute(self, context):
-        settings = context.scene.vertex_color_master_settings
-
-        mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
-        active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
-
-        remap_selected(mesh, vcol, self.min0, self.max0, self.min1, self.max1, active_channels)
-
-        return {'FINISHED'}
+    
+    isolate_mode: BoolProperty(
+        default=False,
+    )
 
     def draw(self, context):
         layout = self.layout
+
+        if not self.isolate_mode:
+            col = layout.column()
+            row = col.row(align=True)
+            row.prop(self, 'active_channels')
 
         layout.label(text="Input Range")
         layout.prop(self, 'min0', text="Min", slider=True)
@@ -1073,6 +1074,29 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
         layout.label(text="Output Range")
         layout.prop(self, 'min1', text="Min", slider=True)
         layout.prop(self, 'max1', text="Max", slider=True)
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        self.isolate_mode = True if get_isolated_channel_ids(vcol) is not None else False
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+
+        remap_selected(mesh, vcol, self.min0, self.max0, self.min1, self.max1, self.active_channels)
+
+        return {'FINISHED'}
 
 
 class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
