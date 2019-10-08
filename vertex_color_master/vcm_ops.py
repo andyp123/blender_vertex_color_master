@@ -497,7 +497,6 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
         items=channel_items,
         description="Which channels to enable.",
         default={'R', 'G', 'B'},
-        update=update_active_channels
     )
 
     random_seed: IntProperty(
