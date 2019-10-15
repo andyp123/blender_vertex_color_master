@@ -212,7 +212,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         if self._handle is None:
             if event.type == 'LEFTMOUSE':
                 # Store the foreground and background color for redo
-                brush = bpy.data.brushes['Draw']
+                brush = context.tool_settings.vertex_paint.brush
                 self.start_color = brush.color
                 self.end_color = brush.secondary_color
 
@@ -1118,14 +1118,22 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def execute(self, context):
+        # In case the user is using another brush, always revert to Draw
+        # to avoid messing up the settings of other brushes.
         brush = bpy.data.brushes['Draw']
-         # This changed between Blender 2.79 -> 2.80, but keeping blur here
+
+        # This changed between Blender 2.79 -> 2.80, but keeping blur here
         if self.blend_mode == 'BLUR':
-            brush.vertex_tool = 'BLUR'
-            brush.blend = 'MIX'
+            brush = bpy.data.brushes['Blur']
         else:
             brush.vertex_tool = 'DRAW'
             brush.blend = self.blend_mode
+
+        # Copy brush colors
+        prev_brush = context.tool_settings.vertex_paint.brush
+        brush.color = prev_brush.color
+        brush.secondary_color = prev_brush.secondary_color
+        context.tool_settings.vertex_paint.brush = brush
 
         return {'FINISHED'}
 
@@ -1200,7 +1208,7 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
 
         copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True, alpha_mode='FILL')
         mesh.vertex_colors.active = iso_vcol
-        brush = bpy.data.brushes['Draw']
+        brush = context.tool_settings.vertex_paint.brush
         settings.brush_color = brush.color
         settings.brush_secondary_color = brush.secondary_color
         brush.color = [settings.brush_value_isolate] * 3
@@ -1236,7 +1244,7 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
 
         iso_vcol = mesh.vertex_colors.active
 
-        brush = bpy.data.brushes['Draw']
+        brush = context.tool_settings.vertex_paint.brush
         brush.color = settings.brush_color
         brush.secondary_color = settings.brush_secondary_color
 
@@ -1274,7 +1282,7 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT'
 
     def execute(self, context):
-        brush = bpy.data.brushes['Draw']
+        brush = context.tool_settings.vertex_paint.brush
         settings = context.scene.vertex_color_master_settings
 
         obj = context.active_object

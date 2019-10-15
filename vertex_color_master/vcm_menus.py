@@ -136,7 +136,7 @@ class VERTEXCOLORMASTER_MT_PieMain(Menu):
 
 # Menu functions for drawing sub-panels
 def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=False):
-    brush = bpy.data.brushes['Draw']
+    brush = context.tool_settings.vertex_paint.brush
     col = layout.column()
     row = col.row()
     if pie:
