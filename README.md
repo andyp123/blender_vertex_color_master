@@ -99,6 +99,20 @@ Remap the value of the currently active channel(s). This function takes values i
 
 ---
 
+### Randomize Mesh Island Colors Per Island (Islands on UI)
+All separate parts of a mesh (islands), will be assigned random values per active channel based on various randomization parameters.
+
++ __Active Channels__ (RGB) - Channels to randomize. Allows the channels to be randomized to be modified in the operator redo panel.
+
++ __Merge Similar__ (off) - Random colors will be assigned to different mesh islands based on the number of faces of the island. The assigned colors will be random, but if two or more islands have the same face count, they will all share the same color. This is useful for creating an id map from vertex colors.
+
++ __Seed__ (1) - The seed determines how the random colors are generated. This ensures the same 'random' colors will be generated each time. To change the colors, change the seed value.
+
++ __Min__ (0.0) - Minimum value for the random values.
+
++ __Max__ (1.0) - Maximum value for the random values.
+
+
 <a name="data_transfer"></a>
 ## Data Transfer
 This section allows quick transfer of data between different color layers, vertex groups and uv layers on the same object. Values can be transferred between 'Src' and 'Dst' layers. When using a vertex color layer, the RGBA channel will be selectable from the channel dropdown on the right. If a vertex group is selected (vertex groups are prefixed with 'W:', for weight), the channel dropdown will be disabled. If a UV layer is selected (UVs are prefixed with 'UV:'), channels will not be selectable at all.
@@ -133,11 +147,17 @@ Copy the weight value of the vertex group in the 'Src' layer to the 'Dst' channe
 ### Src to Weights
 Copy the value of the 'Src' channel to the vertex group in the 'Dst' layer.
 
-### UVs to Dst
+### UVs to Color
 Copy the weight value of the uv layer in the 'Src' layer to the 'Dst' channel.
 
-### Src to UVs
+### Color to UVs
 Copy the value of the 'Src' channel to the uv layer in the 'Dst' layer.
+
+### Normals to Color
+Copy the object space normals to the 'Dst' color layer (XYZ > RGB).
+
+### Color to Normals
+Copy the 'Src' color layer to the custom mesh normals (Requires object space normals, RGB > XYZ).
 
 ---
 
