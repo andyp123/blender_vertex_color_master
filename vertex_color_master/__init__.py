@@ -116,13 +116,9 @@ def unregister():
     # unregister shortcuts
     wm = bpy.context.window_manager
     if wm.keyconfigs.addon:
-        for km in addon_keymaps:
-            for kmi in km.keymap_items:
-                km.keymap_items.remove(kmi)
-
-            wm.keyconfigs.addon.keymaps.remove(km)
-
-    del addon_keymaps[:]
+        for km, kmi in addon_keymaps:
+            km.keymap_items.remove(kmi)
+        addon_keymaps.clear()
 
 # allows running addon from text editor
 if __name__ == '__main__':
