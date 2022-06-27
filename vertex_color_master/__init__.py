@@ -42,7 +42,7 @@ bl_info = {
     "location": "Vertex Paint | View3D > VCM",
     "description": "Tools for manipulating vertex color data.",
     "warning": "",
-    "wiki_url": "https://github.com/andyp123/blender_vertex_color_master",
+    "doc_url": "https://github.com/andyp123/blender_vertex_color_master",
     "tracker_url": "https://github.com/andyp123/blender_vertex_color_master/issues",
     "category": "Paint",
 }
