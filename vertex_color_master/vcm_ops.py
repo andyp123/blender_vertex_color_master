@@ -880,7 +880,8 @@ class VERTEXCOLORMASTER_OT_BlendChannels(bpy.types.Operator):
         return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
 
     def invoke(self, context, event):
-        self.result_channel = settings.dst_channel_id
+        settings = context.scene.vertex_color_master_settings
+        self.result_channel_id = settings.dst_channel_id
         return self.execute(context)
 
     def execute(self, context):
