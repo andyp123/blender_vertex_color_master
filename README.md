@@ -1,6 +1,6 @@
 # Vertex Color Master for Blender
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S3GTZ2J938U6Y&lc=GB&item_name=Andrew%20Palmer&currency_code=GBP&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
+> __Warning:__ This addon does not work well from Blender 3.2 upwards due to internal changes in vertex attributes in Blender. I have tried to fix the problems, but have not been able to yet. I may return to the addon in the future in order to fix the bugs or even rewrite it, but I can't make any guarantees due to other commitments. Apologies to anyone who uses the addon and is waiting for a fix.
 
 An add-on for [Blender](https://www.blender.org/) that adds numerous features to assist working with vertex colors.
 
@@ -259,8 +259,3 @@ When in isolate mode, the pie menu is slightly different, as shown in the follow
 * Optimisations to improve speed of masked operations.
 * Optimisations to improve speed in dense mesh.
 
----
-
-If you like this Add-on and would like to make a donation, you can do so by clicking this button. Every little helps, even if it just keeps me caffeinated!
-
-[![Donate](https://www.paypalobjects.com/en_US/GB/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S3GTZ2J938U6Y&lc=GB&item_name=Andrew%20Palmer&currency_code=GBP&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
