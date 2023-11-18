@@ -69,8 +69,8 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
 
     _handle = None
 
-    line_shader = gpu.shader.from_builtin('2D_SMOOTH_COLOR')
-    circle_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+    line_shader = gpu.shader.from_builtin('SMOOTH_COLOR' if bpy.app.version >= (4,0) else '2D_SMOOTH_COLOR')
+    circle_shader = gpu.shader.from_builtin('UNIFORM_COLOR' if bpy.app.version >= (4,0) else '2D_UNIFORM_COLOR')
 
     start_color: FloatVectorProperty(
         name="Start Color",
