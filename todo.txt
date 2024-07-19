@@ -1,5 +1,59 @@
 Blender 2.80 vertex paint differences:
 
+See this issue for a bunch of information about api changes since the last release:
+https://github.com/andyp123/blender_vertex_color_master/issues/38
+
+Relevant!
+"Mesh.vertex_colors is deprecated and will be removed in a future release. The new sculpt paint tools can now create color attributes, found in Mesh.attributes with type BYTE_COLOR and FLOAT_COLOR. Importers and exporters are recommended to support both types of color attributes, and attributes in general.
+
+Different from the old vertex colors, color attribute values are in scene linear color space instead of sRGB color space. For file formats that require sRGB colors, mathutils.Color.from_scene_linear_to_srgb can perform the conversion."
+
+https://developer.blender.org/docs/release_notes/3.2/sculpt/
+
+Currently the addon does not function correctly with certain types of attribute data:
+
+Mode Name                 | Status
+Vertex > Byte Color       | ...
+Vertex > Color            | ...
+Face Corner > Byte Color  | ...
+Face Corner > Color       | ...
+
+>>> print(bpy.context.object.data.color_attributes[0])
+  <bpy_struct, ByteColorAttribute("Color") at 0x000001B62932CE20>
+>>> print(bpy.context.object.data.color_attributes[0].data[0])
+  <bpy_struct, ByteColorAttributeValue at 0x000001B62DC37418>
+
+ByteColorAttributeValue
+FloatColorAttributeValue
+
+These types both have .color and .color_srgb values (float 4 array)
+
+Internal types are BYTE_COLOR and FLOAT_COLOR
+
+Face Corner uses much more memory than vertex, since they are not shared on a single vertex.
+Support should be kept, but assume Vertex is the default.
+
+The addon MUST work correctly with ALL types of attribute data
+
+error 1 ------------------------------------------------------
+Python: Traceback (most recent call last):
+  File "D:\Repos\blender_vertex_color_master\addons\vertex_color_master\vcm_ops.py", line 1208, in execute
+    copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True, alpha_mode='FILL')
+  File "D:\Repos\blender_vertex_color_master\addons\vertex_color_master\vcm_helpers.py", line 99, in copy_channel
+    color_size = len(src_vcol.data[0].color) if len(src_vcol.data) > 0 else 3
+                     ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Float2AttributeValue' object has no attribute 'color'
+
+
+
+--------------------------------------------------------------
+
+mesh.color_attributes.new(name, type, domain)
+name = attribute name
+type = FLOAT_COLOR, BYTE_COLOR
+domain = POINT, CORNER
+
+
 brush.vertex_tool (seems to be for the draw mode, not blend)
 DRAW, BLUR, AVERAGE, SMEAR
 

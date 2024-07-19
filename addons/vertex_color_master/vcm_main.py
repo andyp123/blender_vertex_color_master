@@ -128,9 +128,9 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         obj = context.active_object
         mesh = obj.data
 
-        items = [] if mesh.vertex_colors is None else [
+        items = [] if mesh.color_attributes is None else [
             ("{0} {1}".format(type_vcol, vcol.name), 
-             vcol.name, "") for vcol in mesh.vertex_colors]
+             vcol.name, "") for vcol in mesh.color_attributes]
         ext = [] if obj.vertex_groups is None else [
             ("{0} {1}".format(type_vgroup, group.name),
              "W: " + group.name, "") for group in obj.vertex_groups]
@@ -142,6 +142,7 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         ext = [("{0} {1}".format(type_normal, "Normals"), "Normals", "")]
         items.extend(ext)
 
+        print(items)
         return items
 
     src_vcol_id: EnumProperty(

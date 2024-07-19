@@ -1,0 +1,14 @@
+schema_version = "1.0.0"
+
+version = "0.9.0"
+id = "vertex_color_master"
+name = "Vertex Color Master"
+tagline = "Tools for manipulating vertex color data"
+maintainer = "Andrew Palmer <andyp.123@gmail.com>"
+type = "add-on"
+website = "https://github.com/andyp123/blender_vertex_color_master/"
+tags = ["Paint"]
+blender_version_min = "4.2.0"
+license = [
+  "SPDX:GPL-3.0-or-later",
+]

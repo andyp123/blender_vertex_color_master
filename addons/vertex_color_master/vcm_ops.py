@@ -71,7 +71,6 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
 
     line_shader = gpu.shader.from_builtin('SMOOTH_COLOR' if bpy.app.version >= (4,0) else '2D_SMOOTH_COLOR')
     circle_shader = gpu.shader.from_builtin('UNIFORM_COLOR' if bpy.app.version >= (4,0) else '2D_UNIFORM_COLOR')
-
     start_color: FloatVectorProperty(
         name="Start Color",
         subtype='COLOR',
@@ -251,7 +250,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                     # Use color gradient or force grayscale in isolate mode
                     start_color = line_params["colors"][0]
                     end_color = line_params["colors"][1]
-                    isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+                    isolate = get_isolated_channel_ids(context.active_object.data.color_attributes.active_color)
                     use_hue_blend = self.use_hue_blend
                     if isolate is not None:
                         start_color = [rgb_to_luminosity(start_color)] * 3
@@ -281,7 +280,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         end_color = self.end_color
 
         # Use color gradient or force grayscale in isolate mode
-        isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+        isolate = get_isolated_channel_ids(context.active_object.data.color_attributes.active_color)
         use_hue_blend = self.use_hue_blend
         if isolate is not None:
             start_color = [rgb_to_luminosity(start_color)] * 3
@@ -434,7 +433,7 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
         separationDiff = 1.0 if len(mesh_islands) == 0 else 1.0 / len(mesh_islands)
 
         # If we are in isolate mode, this is used to force greyscale
-        isolate = get_isolated_channel_ids(context.active_object.data.vertex_colors.active)
+        isolate = get_isolated_channel_ids(context.active_object.data.color_attributes.active_color)
 
         for index, island in enumerate(mesh_islands):
             color = Color((1, 0, 0)) # (0, 1, 1) HSV
@@ -557,7 +556,7 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
     def execute(self, context):
         obj = context.active_object
         mesh = obj.data
-        isolate = get_isolated_channel_ids(mesh.vertex_colors.active)
+        isolate = get_isolated_channel_ids(mesh.color_attributes.active_color)
         if isolate is not None:
             self.report({'ERROR'}, "Randomise Islands Per Channel does not work in isolate mode")
             return {'CANCELLED'}
@@ -607,7 +606,7 @@ class VERTEXCOLORMASTER_OT_BlurChannel(bpy.types.Operator):
     def execute(self, context):
         obj = context.active_object
         mesh = obj.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
         isolate = get_isolated_channel_ids(vcol)
 
         if isolate is None:
@@ -935,7 +934,7 @@ class VERTEXCOLORMASTER_OT_Fill(bpy.types.Operator):
         settings = context.scene.vertex_color_master_settings
 
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
 
         isolate_mode = get_isolated_channel_ids(vcol) is not None
 
@@ -976,7 +975,7 @@ class VERTEXCOLORMASTER_OT_Invert(bpy.types.Operator):
         settings = context.scene.vertex_color_master_settings
 
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
         active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
 
         invert_selected(mesh, vcol, active_channels)
@@ -1010,7 +1009,7 @@ class VERTEXCOLORMASTER_OT_Posterize(bpy.types.Operator):
         steps = self.steps - 1
 
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
         active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
 
         posterize_selected(mesh, vcol, steps, active_channels)
@@ -1085,7 +1084,7 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
         settings = context.scene.vertex_color_master_settings
 
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
         self.isolate_mode = True if get_isolated_channel_ids(vcol) is not None else False
         self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
         
@@ -1093,7 +1092,7 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
 
     def execute(self, context):
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
 
         remap_selected(mesh, vcol, self.min0, self.max0, self.min1, self.max1, self.active_channels)
 
@@ -1161,7 +1160,7 @@ class VERTEXCOLORMASTER_OT_QuickFill(bpy.types.Operator):
         settings = context.scene.vertex_color_master_settings
 
         mesh = context.active_object.data
-        vcol = mesh.vertex_colors.active if mesh.vertex_colors else mesh.vertex_colors.new()
+        vcol = mesh.color_attributes.active_color if mesh.color_attributes else mesh.color_attributes.new(*color_attribute_default)
 
         quick_fill_selected(mesh, vcol, self.fill_color)
 
@@ -1190,25 +1189,28 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
         obj = context.active_object
         mesh = obj.data
 
-        if mesh.vertex_colors is None:
+        if mesh.color_attributes is None:
             self.report({'ERROR'}, "Mesh has no vertex color layer to isolate.")
             return {'FINISHED'}
 
         # get the vcol and channel to isolate
         # create empty vcol using name template
-        vcol = mesh.vertex_colors.active
+        vcol = mesh.color_attributes.active_color
         iso_vcol_id = "{0}_{1}_{2}".format(isolate_mode_name_prefix, self.src_channel_id, vcol.name)
-        if iso_vcol_id in mesh.vertex_colors:
+        if iso_vcol_id in mesh.color_attributes:
             error = "{0} Channel has already been isolated to {1}. Apply or Discard before isolating again.".format(self.src_channel_id, iso_vcol_id)
             self.report({'ERROR'}, error)
             return {'FINISHED'}
 
-        iso_vcol = mesh.vertex_colors.new()
-        iso_vcol.name = iso_vcol_id
+        src_type = 'BYTE_COLOR'
+        src_domain = 'CORNER'
+        iso_vcol = mesh.color_attributes.new(iso_vcol_id, src_type, src_domain)
         channel_idx = channel_id_to_idx(self.src_channel_id)
 
+# TODO: copy channel is totally broken! Attributes can probably be looped through very differently now
         copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True, alpha_mode='FILL')
-        mesh.vertex_colors.active = iso_vcol
+
+        mesh.color_attributes.active_color = iso_vcol
         brush = context.tool_settings.vertex_paint.brush
         settings.brush_color = brush.color
         settings.brush_secondary_color = brush.secondary_color
@@ -1233,8 +1235,8 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        if obj is not None and obj.type == 'MESH' and obj.data.vertex_colors is not None:
-            vcol = obj.data.vertex_colors.active
+        if obj is not None and obj.type == 'MESH' and obj.data.color_attributes is not None:
+            vcol = obj.data.color_attributes.active_color
             # operator will not work if the active vcol name doesn't match the right template
             vcol_info = get_isolated_channel_ids(vcol)
             return vcol_info is not None
@@ -1243,19 +1245,19 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
         settings = context.scene.vertex_color_master_settings
         mesh = context.active_object.data
 
-        iso_vcol = mesh.vertex_colors.active
+        iso_vcol = mesh.color_attributes.active_color
 
         brush = context.tool_settings.vertex_paint.brush
         brush.color = settings.brush_color
         brush.secondary_color = settings.brush_secondary_color
 
         if self.discard:
-            mesh.vertex_colors.remove(iso_vcol)
+            mesh.color_attributes.remove(iso_vcol)
             return {'FINISHED'}
 
         vcol_info = get_isolated_channel_ids(iso_vcol)
 
-        vcol = mesh.vertex_colors[vcol_info[0]]
+        vcol = mesh.color_attributes[vcol_info[0]]
         channel_idx = channel_id_to_idx(vcol_info[1])
 
         if vcol is None:
@@ -1265,8 +1267,8 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
 
         # assuming iso_vcol has only grayscale data, RGB are equal, so copy from R
         copy_channel(mesh, iso_vcol, vcol, 0, channel_idx)
-        mesh.vertex_colors.active = vcol
-        mesh.vertex_colors.remove(iso_vcol)
+        mesh.color_attributes.active_color = vcol
+        mesh.color_attributes.remove(iso_vcol)
 
         return {'FINISHED'}
 
@@ -1288,7 +1290,7 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
 
         obj = context.active_object
         if context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH' \
-            and get_isolated_channel_ids(context.active_object.data.vertex_colors.active) is not None \
+            and get_isolated_channel_ids(context.active_object.data.color_attributes.active_color) is not None \
             or settings.use_grayscale:
                 v1 = settings.brush_value_isolate
                 v2 = settings.brush_secondary_value_isolate

@@ -55,3 +55,6 @@ default_brush_name = 'Draw' # Changed to Add in 2.81 for some reason
 
  # VCM-ISO_<CHANNEL_ID>_<VCOL_ID> ex. VCM-ISO_R_Col
 isolate_mode_name_prefix = 'VCM-ISO'
+
+# unpack into color_attributes.new() using * operator
+color_attribute_default = ("Color", 'BYTE_COLOR', 'CORNER')

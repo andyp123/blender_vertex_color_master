@@ -55,15 +55,16 @@ def get_active_channel_mask(active_channels):
 
 
 def get_isolated_channel_ids(vcol):
-    vcol_id = vcol.name
-    prefix = isolate_mode_name_prefix
-    prefix_len = len(prefix)
+    if vcol is not None:
+        vcol_id = vcol.name
+        prefix = isolate_mode_name_prefix
+        prefix_len = len(prefix)
 
-    if vcol_id.startswith(prefix) and len(vcol_id) > prefix_len + 3:
-        iso_vcol_id = vcol_id[prefix_len + 3:] # get vcol id from end of string
-        iso_channel_id = vcol_id[prefix_len + 1] # get channel id
-        if iso_channel_id in valid_channel_ids:
-            return [iso_vcol_id, iso_channel_id]
+        if vcol_id.startswith(prefix) and len(vcol_id) > prefix_len + 3:
+            iso_vcol_id = vcol_id[prefix_len + 3:] # get vcol id from end of string
+            iso_channel_id = vcol_id[prefix_len + 1] # get channel id
+            if iso_channel_id in valid_channel_ids:
+                return [iso_vcol_id, iso_channel_id]
 
     return None
 
@@ -88,40 +89,56 @@ def convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, dst_all
             dst_vcol.data[loop_index].color[dst_channel_idx] = luminosity
 
 
+
+
+# TODO: Currently completely broken!
+# Blender now uses Attributes for everything. vcol channels are attributes, and colors are vectors
+# Must check domain and type are the same between src + destination or conversion is required
+
+# TODO: Should this copy channels of ANY kind of attribute?
+# ByteColorAttribute (RGBA 8bit), FloatColorAttribute (RGBA 32bit) < For colours
+
+# Other Attribute types:
+# BoolAttribute, ByteColorAttribute, ByteIntAttribute, Float2Attribute, Float4x4Attribute, FloatAttribute,
+# FloatVectorAttribute, Int2Attribute, IntAttribute, QuaternionAttribute, StringAttribute
+
+# src_attr: Source attribute (ByteColorAttribute or FloatColorAttribute)
+# dst_attr: Destination attribute (Attribute of same data_type and domain as src_attr)
+# src_channel_idx: Source channel (0-3)
+# dst_channel_idx: Destination channel (0-3)
+
 # alpha_mode
 # 'OVERWRITE' - replace with copied channel value
 # 'PRESERVE' - keep existing alpha value
 # 'FILL' - fill alpha with 1.0
-def copy_channel(mesh, src_vcol, dst_vcol, src_channel_idx, dst_channel_idx, swap=False,
+def copy_channel(mesh, src_attr, dst_attr, src_channel_idx, dst_channel_idx, swap=False,
                  dst_all_channels=False, alpha_mode='PRESERVE'):
-    if dst_all_channels:
-        color_size = len(src_vcol.data[0].color) if len(src_vcol.data) > 0 else 3
-        if alpha_mode == 'OVERWRITE' or color_size < 4:
-            for loop_index, loop in enumerate(mesh.loops):
-                src_val = src_vcol.data[loop_index].color[src_channel_idx]
-                dst_vcol.data[loop_index].color = [src_val] * color_size
+    if src_attr.data_type != dst_attr.data_type or src_attr.domain != dst_attr.domain:
+        return
+
+    if dst_all_channels: # typically used in isolate mode
+        if alpha_mode == 'OVERWRITE':
+            for index, attr in enumerate(src_attr.data):
+                src_val = attr.color[src_channel_idx]
+                dst_attr.data[index].color = [src_val] * 4
         elif alpha_mode == 'FILL':
-            for loop_index, loop in enumerate(mesh.loops):
-                src_val = src_vcol.data[loop_index].color[src_channel_idx]
-                dst_vcol.data[loop_index].color = [src_val, src_val, src_val, 1.0]
-        else: # default to preserve
-            for loop_index, loop in enumerate(mesh.loops):
-                c = src_vcol.data[loop_index].color
-                src_val = c[src_channel_idx]
-                c[0] = src_val
-                c[1] = src_val
-                c[2] = src_val
-                dst_vcol.data[loop_index].color = c
+            for index, attr in enumerate(src_attr.data):
+                src_val = attr.color[src_channel_idx]
+                dst_attr.data[index].color = [src_val, src_val, src_val, 1.0]
+        else: # 'PRESERVE'            
+            for index, attr in enumerate(src_attr.data):
+                src_val = attr.color[src_channel_idx]
+                dst_attr.data[index].color = [src_val, src_val, src_val, attr.color[3]]
     else:
         if swap:
-            for loop_index, loop in enumerate(mesh.loops):
-                src_val = src_vcol.data[loop_index].color[src_channel_idx]
-                dst_val = dst_vcol.data[loop_index].color[dst_channel_idx]
-                dst_vcol.data[loop_index].color[dst_channel_idx] = src_val
-                src_vcol.data[loop_index].color[src_channel_idx] = dst_val
+            for index in range(len(src_attr.data)):
+                src_val = src_attr.data[index].color[src_channel_idx]
+                dst_val = src_attr.data[index].color[dst_channel_idx]
+                src_attr.data[index].color[src_channel_idx] = dst_val
+                dst_attr.data[index].color[dst_channel_idx] = src_val
         else:
-            for loop_index, loop in enumerate(mesh.loops):
-                dst_vcol.data[loop_index].color[dst_channel_idx] = src_vcol.data[loop_index].color[src_channel_idx]
+            for index, attr in enumerate(src_attr.data):
+                dst_attr.data[index].color[dst_channel_idx] = attr.color[src_channel_idx]
 
     mesh.update()
 
@@ -554,6 +571,8 @@ def get_layer_info(context):
     return [src_type, src_id, dst_type, dst_id]
 
 
+# TODO: This needs rewriting due to change from vertex_colors to color_attributes
+# It must support POINT or CORNER with BYTE_COLOR or FLOAT_COLOR combinations
 def get_validated_input(context, get_src, get_dst):
     settings = context.scene.vertex_color_master_settings
     obj = context.active_object
@@ -570,8 +589,9 @@ def get_validated_input(context, get_src, get_dst):
 
     # are these conditions actually possible?
     if message is None:
-        if (src_type == type_vcol or dst_type == type_vcol) and mesh.vertex_colors is None:
+        if (src_type == type_vcol or dst_type == type_vcol) and mesh.color_attributes is None:
             message = "Object has no vertex colors."
+# TODO: Very likely these have also been converted to attributes
         if (src_type == type_vgroup or dst_type == type_vgroup) and obj.vertex_groups is None:
             message = "Object has no vertex groups."
         if (src_type == type_uv or dst_type == type_uv) and mesh.uv_layers is None:
@@ -580,8 +600,8 @@ def get_validated_input(context, get_src, get_dst):
     # validate src
     if get_src and message is None:
         if src_type == type_vcol:
-            if src_id in mesh.vertex_colors:
-                rv['src_vcol'] = mesh.vertex_colors[src_id]
+            if src_id in mesh.color_attributes:
+                rv['src_vcol'] = mesh.color_attributes[src_id]
                 rv['src_channel_idx'] = channel_id_to_idx(settings.src_channel_id)
             else:
                 message = "Src color layer is not valid."
@@ -603,8 +623,8 @@ def get_validated_input(context, get_src, get_dst):
     # validate dst
     if get_dst and message is None:
         if dst_type == type_vcol:
-            if dst_id in mesh.vertex_colors:
-                rv['dst_vcol'] = mesh.vertex_colors[dst_id]
+            if dst_id in mesh.color_attributes:
+                rv['dst_vcol'] = mesh.color_attributes[dst_id]
                 rv['dst_channel_idx'] = channel_id_to_idx(settings.dst_channel_id)
             else:
                 message = "Dst color layer is not valid."
