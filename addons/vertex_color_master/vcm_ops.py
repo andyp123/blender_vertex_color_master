@@ -1207,7 +1207,6 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
         iso_vcol = mesh.color_attributes.new(iso_vcol_id, src_type, src_domain)
         channel_idx = channel_id_to_idx(self.src_channel_id)
 
-# TODO: copy channel is totally broken! Attributes can probably be looped through very differently now
         copy_channel(mesh, vcol, iso_vcol, channel_idx, channel_idx, dst_all_channels=True, alpha_mode='FILL')
 
         mesh.color_attributes.active_color = iso_vcol

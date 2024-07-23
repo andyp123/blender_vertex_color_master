@@ -28,6 +28,9 @@ FloatColorAttributeValue
 
 These types both have .color and .color_srgb values (float 4 array)
 
+UV: Float2AttributeValue
+.vector
+
 Internal types are BYTE_COLOR and FLOAT_COLOR
 
 Face Corner uses much more memory than vertex, since they are not shared on a single vertex.
