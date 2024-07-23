@@ -37,13 +37,13 @@ def remap(value, min0, max0, min1, max1):
 
 
 def channel_id_to_idx(id):
-    if id is red_id:
+    if id == red_id:
         return 0
-    if id is green_id:
+    if id == green_id:
         return 1
-    if id is blue_id:
+    if id == blue_id:
         return 2
-    if id is alpha_id:
+    if id == alpha_id:
         return 3
     # default to red
     return 0
