@@ -24,6 +24,11 @@ __Note:__ This add-on requires [Blender 2.80](https://builder.blender.org/downlo
 3. Press the 'Install...' button and select the .zip file you downloaded.
 4. Enable the add-on and save preferences if you want it to always be available.
 
+In case if you want to update your addon to the most recent version that may not yet be released, you need to:
+1. [Download this repository ZIP archive](https://github.com/andyp123/blender_vertex_color_master/archive/refs/heads/master.zip).
+2. Find and open addon's folder on your computer. It can be found by searching for "Vertex Color Master" in Blender Edit>Preferences>Addons by "File" field. On Windows it's typically something close to `C:\Users\xxxx\AppData\Roaming\Blender Foundation\Blender\x.x\scripts\addons\vertex_color_master\`.
+3. Remove contents from your addon's folder and unpack files from folder `blender_vertex_color_master-master\vertex_color_master` in the downloaded ZIP archive.
+4. Restart Blender in case if it was started.
 ---
 
 <a name="usage"></a>
