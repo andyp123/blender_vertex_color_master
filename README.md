@@ -1,6 +1,8 @@
 # Vertex Color Master for Blender
 
-> __Warning:__ This addon does not work well from Blender 3.2 upwards due to internal changes in vertex attributes in Blender. I have tried to fix the problems, but have not been able to yet. I may return to the addon in the future in order to fix the bugs or even rewrite it, but I can't make any guarantees due to other commitments. Apologies to anyone who uses the addon and is waiting for a fix.
+> __Warning:__ This addon does not work well from **Blender 3.2 to 3.6** due to internal changes in vertex attributes in Blender. However, there is currently an [0.9.0 alpha release](https://github.com/andyp123/blender_vertex_color_master/releases/tag/v0.9.0alpha) available that should work with **Blender 4.0+**. This alpha release has some issues (notably the redo panel) that may be fixed in the future, but I can't make any guarantees due to other commitments.
+
+> Users with **Blender 3.1** and prior should be fine using the much older [0.8.4 release](https://github.com/andyp123/blender_vertex_color_master/releases/tag/v0.84).
 
 An add-on for [Blender](https://www.blender.org/) that adds numerous features to assist working with vertex colors.
 
