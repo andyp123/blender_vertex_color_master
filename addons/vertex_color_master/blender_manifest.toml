@@ -8,7 +8,7 @@ maintainer = "Andrew Palmer <andyp.123@gmail.com>"
 type = "add-on"
 website = "https://github.com/andyp123/blender_vertex_color_master/"
 tags = ["Paint"]
-blender_version_min = "4.2.0"
+blender_version_min = "3.6.0"
 license = [
   "SPDX:GPL-3.0-or-later",
 ]

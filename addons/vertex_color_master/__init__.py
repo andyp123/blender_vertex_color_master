@@ -38,7 +38,7 @@ bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
     "version": (0, 9, 0),
-    "blender": (4, 2, 0),
+    "blender": (3, 6, 0),
     "location": "Vertex Paint | View3D > VCM",
     "description": "Tools for manipulating vertex color data.",
     "warning": "",
