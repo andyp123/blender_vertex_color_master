@@ -1190,7 +1190,7 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
         obj = context.active_object
         mesh = obj.data
 
-        if mesh.vertex_colors is None:
+        if not mesh.vertex_colors:
             self.report({'ERROR'}, "Mesh has no vertex color layer to isolate.")
             return {'FINISHED'}
 
