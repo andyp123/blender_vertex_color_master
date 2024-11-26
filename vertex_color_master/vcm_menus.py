@@ -43,6 +43,10 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
         obj = context.active_object
         settings = context.scene.vertex_color_master_settings
 
+        if not obj.data.vertex_colors.active:
+            layout.label(text="No active vertex color layer")
+            return
+
         # use active mesh active vcol layer name to determine whether or not
         # should we be in isolate mode or not
         isolate = get_isolated_channel_ids(obj.data.vertex_colors.active)
