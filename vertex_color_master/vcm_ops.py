@@ -1233,7 +1233,7 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        if obj is not None and obj.type == 'MESH' and obj.data.vertex_colors is not None:
+        if obj is not None and obj.type == 'MESH' and obj.data.vertex_colors:
             vcol = obj.data.vertex_colors.active
             # operator will not work if the active vcol name doesn't match the right template
             vcol_info = get_isolated_channel_ids(vcol)
