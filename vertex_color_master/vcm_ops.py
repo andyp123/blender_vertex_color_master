@@ -101,7 +101,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def paintVerts(self, context, start_point, end_point, start_color, end_color, circular_gradient=False, use_hue_blend=False):
         region = context.region
@@ -398,7 +398,7 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         mesh = context.active_object.data
@@ -547,7 +547,7 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def invoke(self, context, event):
         settings = context.scene.vertex_color_master_settings
@@ -602,7 +602,7 @@ class VERTEXCOLORMASTER_OT_BlurChannel(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         obj = context.active_object
@@ -646,7 +646,7 @@ class VERTEXCOLORMASTER_OT_ColorToUVs(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=True)
@@ -672,7 +672,7 @@ class VERTEXCOLORMASTER_OT_UVsToColor(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=True)
@@ -698,7 +698,7 @@ class VERTEXCOLORMASTER_OT_NormalsToColor(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=False, get_dst=True)
@@ -723,7 +723,7 @@ class VERTEXCOLORMASTER_OT_ColorToNormals(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=False)
@@ -747,7 +747,7 @@ class VERTEXCOLORMASTER_OT_ColorToWeights(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=True)
@@ -771,7 +771,7 @@ class VERTEXCOLORMASTER_OT_WeightsToColor(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=True)
@@ -802,7 +802,7 @@ class VERTEXCOLORMASTER_OT_RgbToGrayscale(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=True)
@@ -839,7 +839,7 @@ class VERTEXCOLORMASTER_OT_CopyChannel(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         vi = get_validated_input(context, get_src=True, get_dst=True)
@@ -877,7 +877,7 @@ class VERTEXCOLORMASTER_OT_BlendChannels(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def invoke(self, context, event):
         settings = context.scene.vertex_color_master_settings
@@ -929,7 +929,7 @@ class VERTEXCOLORMASTER_OT_Fill(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
@@ -970,7 +970,7 @@ class VERTEXCOLORMASTER_OT_Invert(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
@@ -1001,7 +1001,7 @@ class VERTEXCOLORMASTER_OT_Posterize(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
@@ -1079,7 +1079,7 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def invoke(self, context, event):
         settings = context.scene.vertex_color_master_settings
@@ -1116,7 +1116,7 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         # In case the user is using another brush, always revert to Draw
@@ -1155,7 +1155,7 @@ class VERTEXCOLORMASTER_OT_QuickFill(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
@@ -1183,14 +1183,14 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return bpy.context.object.mode == 'VERTEX_PAINT' and obj is not None and obj.type == 'MESH'
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
         settings = context.scene.vertex_color_master_settings
         obj = context.active_object
         mesh = obj.data
 
-        if mesh.vertex_colors is None:
+        if not mesh.vertex_colors:
             self.report({'ERROR'}, "Mesh has no vertex color layer to isolate.")
             return {'FINISHED'}
 
@@ -1233,7 +1233,7 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        if obj is not None and obj.type == 'MESH' and obj.data.vertex_colors is not None:
+        if obj is not None and obj.type == 'MESH' and obj.data.vertex_colors:
             vcol = obj.data.vertex_colors.active
             # operator will not work if the active vcol name doesn't match the right template
             vcol_info = get_isolated_channel_ids(vcol)
@@ -1280,7 +1280,7 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return bpy.context.object.mode == 'VERTEX_PAINT'
+        return (obj := bpy.context.object) and obj.mode == "VERTEX_PAINT"
 
     def execute(self, context):
         brush = context.tool_settings.vertex_paint.brush
